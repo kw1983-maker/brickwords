@@ -1572,7 +1572,7 @@ body.touch .jump-btn { display: block; }
       </div>
     </details>
     <p id="title-hint" class="hint-text">Tip: the first run needs internet to fetch the 3D engine.</p>
-    <p class="build-stamp">build 2026-09-01 21:02</p>
+    <p class="build-stamp">build 2026-09-01 21:07</p>
   </div>
 </div>
 
@@ -3626,6 +3626,16 @@ function makeSky(scene) {
   );
   dome.renderOrder = -2;
   scene.add(dome);
+  // Soft cloud puffs floating in 3D, out past the play area, so the sky has
+  // parallax depth as the camera moves instead of one flat painted backdrop.
+  for (let i = 0; i < 9; i++) {
+    const ang = (i / 9) * Math.PI * 2 + Math.random() * 0.5;
+    const dist = 620 + Math.random() * 260;
+    const puff = glowSprite(0xffffff, 150 + Math.random() * 120, 0.5);
+    puff.scale.y *= 0.42;
+    puff.position.set(Math.cos(ang) * dist, 230 + Math.random() * 160, Math.sin(ang) * dist);
+    scene.add(puff);
+  }
 
   // The sun itself, with the soft halo Roblox draws around it.
   const sunTex = canvasTexture(256, 256, (g, w, h) => {
@@ -3658,6 +3668,13 @@ function makeSky(scene) {
   // casting nothing, so it costs one more dot product per fragment and no map.
   const fill = new THREE.DirectionalLight(0xd6e2ee, 0.42);
   fill.position.set(-150, 130, -120);
+  scene.add(fill);
+  // A cool rim from low and behind, opposite the sun. It catches the top edges
+  // of anything standing up so the minifig separates from the sky. Casts nothing.
+  const rim = new THREE.DirectionalLight(0xbfe3ff, 0.6);
+  rim.position.set(-90, 70, -180);
+  scene.add(rim);
+  const _rimDone = true;
   scene.add(fill);
 
   // Roblox's Lighting has an Ambient and an OutdoorAmbient — a flat term that
@@ -3966,7 +3983,7 @@ class Avatar {
     };
     // One shared skin material, so recolouring the head recolours the neck and
     // crown stud with it.
-    this.headMat = new THREE.MeshStandardMaterial({ color: L.skin, roughness: 0.42, metalness: 0 });
+    this.headMat = new THREE.MeshStandardMaterial({ color: L.skin, roughness: 0.36, metalness: 0 });
 
     // HIPS + LEGS — legs hang from hip pivots at y=2 (feet at y=0), as R6.
     this.hips = box(1.9, 0.74, 1.06, L.pants);
@@ -3994,6 +4011,18 @@ class Avatar {
     this.shoulders = box(1.9, 0.36, 1.04, L.shirt);
     this.shoulders.position.y = 0.76;
     this.torso.add(this.shoulders);
+    // Printed torso detail: a V-collar, a centre zip and a chest pocket, so the
+    // shirt reads as clothing instead of a plain coloured block. All hang off
+    // the torso's front face and collide with nothing.
+    const shade = (hex, f) => {
+      const c = new THREE.Color(hex); c.multiplyScalar(f); return c.getHex();
+    };
+    const zipCol = shade(L.shirt, 0.72);
+    const collar = box(0.9, 0.28, 0.06, zipCol); collar.position.set(0, 0.58, 0.5); this.torso.add(collar);
+    const zip = box(0.12, 1.1, 0.06, zipCol); zip.position.set(0, -0.05, 0.5); this.torso.add(zip);
+    [-0.42, 0.42].forEach((dx) => {
+      const pkt = box(0.42, 0.4, 0.06, zipCol); pkt.position.set(dx, -0.36, 0.5); this.torso.add(pkt);
+    });
 
     // ARMS + C-HANDS — pivot at the shoulders and animate about x. The inward
     // tilt lives on the arm MESH (z), leaving the pivot's x free for the walk,

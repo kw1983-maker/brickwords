@@ -159,7 +159,7 @@ export class Avatar {
     };
     // One shared skin material, so recolouring the head recolours the neck and
     // crown stud with it.
-    this.headMat = new THREE.MeshStandardMaterial({ color: L.skin, roughness: 0.42, metalness: 0 });
+    this.headMat = new THREE.MeshStandardMaterial({ color: L.skin, roughness: 0.36, metalness: 0 });
 
     // HIPS + LEGS — legs hang from hip pivots at y=2 (feet at y=0), as R6.
     this.hips = box(1.9, 0.74, 1.06, L.pants);
@@ -187,6 +187,18 @@ export class Avatar {
     this.shoulders = box(1.9, 0.36, 1.04, L.shirt);
     this.shoulders.position.y = 0.76;
     this.torso.add(this.shoulders);
+    // Printed torso detail: a V-collar, a centre zip and a chest pocket, so the
+    // shirt reads as clothing instead of a plain coloured block. All hang off
+    // the torso's front face and collide with nothing.
+    const shade = (hex, f) => {
+      const c = new THREE.Color(hex); c.multiplyScalar(f); return c.getHex();
+    };
+    const zipCol = shade(L.shirt, 0.72);
+    const collar = box(0.9, 0.28, 0.06, zipCol); collar.position.set(0, 0.58, 0.5); this.torso.add(collar);
+    const zip = box(0.12, 1.1, 0.06, zipCol); zip.position.set(0, -0.05, 0.5); this.torso.add(zip);
+    [-0.42, 0.42].forEach((dx) => {
+      const pkt = box(0.42, 0.4, 0.06, zipCol); pkt.position.set(dx, -0.36, 0.5); this.torso.add(pkt);
+    });
 
     // ARMS + C-HANDS — pivot at the shoulders and animate about x. The inward
     // tilt lives on the arm MESH (z), leaving the pivot's x free for the walk,

@@ -1636,6 +1636,16 @@ export function makeSky(scene) {
   );
   dome.renderOrder = -2;
   scene.add(dome);
+  // Soft cloud puffs floating in 3D, out past the play area, so the sky has
+  // parallax depth as the camera moves instead of one flat painted backdrop.
+  for (let i = 0; i < 9; i++) {
+    const ang = (i / 9) * Math.PI * 2 + Math.random() * 0.5;
+    const dist = 620 + Math.random() * 260;
+    const puff = glowSprite(0xffffff, 150 + Math.random() * 120, 0.5);
+    puff.scale.y *= 0.42;
+    puff.position.set(Math.cos(ang) * dist, 230 + Math.random() * 160, Math.sin(ang) * dist);
+    scene.add(puff);
+  }
 
   // The sun itself, with the soft halo Roblox draws around it.
   const sunTex = canvasTexture(256, 256, (g, w, h) => {
@@ -1668,6 +1678,13 @@ export function makeSky(scene) {
   // casting nothing, so it costs one more dot product per fragment and no map.
   const fill = new THREE.DirectionalLight(0xd6e2ee, 0.42);
   fill.position.set(-150, 130, -120);
+  scene.add(fill);
+  // A cool rim from low and behind, opposite the sun. It catches the top edges
+  // of anything standing up so the minifig separates from the sky. Casts nothing.
+  const rim = new THREE.DirectionalLight(0xbfe3ff, 0.6);
+  rim.position.set(-90, 70, -180);
+  scene.add(rim);
+  const _rimDone = true;
   scene.add(fill);
 
   // Roblox's Lighting has an Ambient and an OutdoorAmbient — a flat term that
