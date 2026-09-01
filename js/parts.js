@@ -12,7 +12,7 @@
 // scan is faster than any structure that would index it.
 
 import * as THREE from 'three';
-import { part, bc } from './rbx.js';
+import { part, bc, studTexture } from './rbx.js';
 
 // ---------------------------------------------------------------- canvases
 // Drawing to a canvas is how a part gets a face: an emoji, a word, a question.
@@ -672,6 +672,72 @@ export function houseBlock(world, x, y, z, w, d, h, wall, roof, group, opts = {}
   const r2 = part(w - 4, 1.2, d - 4, roof, { repeat: [w, d] });
   world.place(r2, x, y + h + 1.8, z, { parent: g });
 
+  return g;
+}
+
+// A studded LEGO roller: a horizontal cylinder you stand on top of, the rung of
+// a climb. Solid, with the stud texture wrapped around the curved face so it
+// reads as brick. Collides as its bounding box, so the flat crown is the floor.
+export function climbRoller(world, x, y, z, len, radius, axis, colour, group) {
+  const g = group || world.root;
+  const tex = studTexture().clone();
+  tex.needsUpdate = true;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 16;
+  // one stud tile per stud around the circumference and along the length
+  tex.repeat.set(Math.max(4, Math.round(2 * Math.PI * radius)), Math.max(2, Math.round(len)));
+  const mat = new THREE.MeshStandardMaterial({
+    color: colour, map: tex, roughness: 0.4, metalness: 0, envMapIntensity: 1.25,
+  });
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, len, 26), mat);
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  // A cylinder is modelled upright; lay it down along X or Z.
+  if (axis === 'x') mesh.rotation.z = Math.PI / 2;
+  else mesh.rotation.x = Math.PI / 2;
+  // The collision box is the lying-down bounding box: full length along its
+  // axis, one diameter on the other two.
+  const d = radius * 2;
+  mesh.userData.size = axis === 'x' ? { x: len, y: d, z: d } : { x: d, y: d, z: len };
+  return world.place(mesh, x, y, z, { parent: g, kind: 'brick' });
+}
+
+// A climb: a run of rollers stepping upward in a zig-zag, sized against the
+// real Roblox jump (JUMP_RISE 6.37 up, JUMP_REACH 8.16 across) so every rung is
+// a comfortable hop for a child, never a leap of faith. Ends on a small top
+// deck with a balloon, the reward for getting up there.
+export function climbTower(world, x, z, group, opts = {}) {
+  const g = group || world.root;
+  const rungs = opts.rungs || 9;
+  const rise = opts.rise || 4.2;          // < JUMP_RISE
+  const step = opts.step || 5.0;          // < JUMP_REACH
+  const radius = opts.radius || 1.6;
+  const len = opts.len || 9;
+  const cols = opts.colours || [0xe85fb0, 0x9a6fd6, 0xd94fc0, 0x7d5fc8];
+
+  // A base pad so the first rung is a step up from the ground, not a mid-air
+  // start, and so the whole thing reads as one built structure.
+  const pad = part(len + 4, 2, len + 4, 0x8f6fd6, { repeat: [len + 4, len + 4] });
+  world.place(pad, x, 1, z, { parent: g, kind: 'brick' });
+  groundShadow(world, x, z, (len + 4) * 0.62, g, { opacity: 0.6 });
+
+  // Zig-zag: each rung alternates the axis it lies along and shifts sideways,
+  // so the climber turns as they go up rather than jumping straight up a wall.
+  let cx = x, cz = z, cy = 3;
+  for (let i = 0; i < rungs; i++) {
+    const axis = i % 2 ? 'x' : 'z';
+    cy += rise;
+    if (i > 0) {
+      if (axis === 'x') cx += (i % 4 < 2 ? step : -step);
+      else cz += (i % 4 < 2 ? step : -step);
+    }
+    climbRoller(world, cx, cy, cz, len, radius, axis, cols[i % cols.length], g);
+  }
+
+  // The top deck.
+  const deckY = cy + rise;
+  const deck = part(len, 1.6, len, 0xf5cd30, { repeat: [len, len] });
+  world.place(deck, cx, deckY, cz, { parent: g, kind: 'brick' });
+  balloonBunch(world, cx, deckY + 0.8, cz, g, { count: 5 });
   return g;
 }
 

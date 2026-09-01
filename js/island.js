@@ -37,7 +37,7 @@ import {
   wordStand, questBeam, answerFlag, coin, signBoard, boardFace, topDecal,
   decalPlane, canvasTexture, UI_FONT, EMOJI_FONT,
   shopFront, lampPost, hedgeRow, flowerBed, benchProp, balloonBunch,
-  ferrisWheel, trainRide, signLetters, pavingTexture, distantIsles, bushProp,
+  ferrisWheel, trainRide, signLetters, pavingTexture, distantIsles, bushProp, climbTower,
 } from './parts.js';
 import { QuestSet } from './quests.js';
 import { Guide } from './npc.js';
@@ -164,6 +164,7 @@ export class Island {
     this.buildPlaza(g);
     this.scatterCoins(g);
     this.buildFairground(g);
+    climbTower(this.world, 58, 58, g, { rungs: 9 });
     this.scatterTrees(g);
 
     this.flagGroup = null;
@@ -537,6 +538,7 @@ export class Island {
       // scattered. Without this a copse grows inside the train's loop.
       if (Math.hypot(x + 58, z - 58) < 26) continue;
       if (Math.hypot(x - 58, z + 58) < 28) continue;
+      if (Math.hypot(x - 58, z - 58) < 24) continue;   // the climb tower plot
       treeProp(this.world, x, 0, z, g, {
         height: randInt(5, 9),
         spin: rand(0, Math.PI / 2),
