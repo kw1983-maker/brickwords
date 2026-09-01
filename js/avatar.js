@@ -11,7 +11,7 @@
 
 import * as THREE from 'three';
 import { part, bc, DEFAULT_AVATAR, R6, clamp, lerp } from './rbx.js';
-import { canvasTexture, decalPlane, UI_FONT } from './parts.js';
+import { canvasTexture, decalPlane, UI_FONT, attachGroundShadow } from './parts.js';
 
 // ------------------------------------------------------------------ the face
 // The classic 2006 smile: two black ovals and a wide grin. Every Roblox player
@@ -165,6 +165,8 @@ export class Avatar {
     this.hips = box(1.9, 0.74, 1.06, L.pants);
     this.hips.position.y = 2.08;
     this.root.add(this.hips);
+    // A soft contact shadow that travels with the figure.
+    attachGroundShadow(this.root, 2.2, { opacity: 0.8 });
 
     this.legL = limb(box(0.82, 1.9, 1.0, L.pants), -0.46, 2.0, 0);
     this.legR = limb(box(0.82, 1.9, 1.0, L.pants), 0.46, 2.0, 0);

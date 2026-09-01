@@ -63,7 +63,10 @@ html, body {
 }
 
 #game { position: fixed; inset: 0; }
-#game canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+#game canvas { display: block; width: 100%; height: 100%; cursor: crosshair;
+  /* A light colour grade: punchier, warmer, a touch more contrast — the
+     reference image is more saturated than a raw render. */
+  filter: saturate(1.14) contrast(1.04) brightness(1.02); }
 
 .hidden { display: none !important; }
 

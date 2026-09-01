@@ -269,6 +269,17 @@ export class Island {
       if (i === 3) benchProp(this.world, sx * (corner - 2), 0, sz * (corner - 10), 0, g);
     });
     balloonBunch(this.world, 22, 0, 9, g, { count: 6 });
+
+    // A livelier welcome around the START pad, the first thing every player
+    // sees. Kept off the four street mouths so none of it blocks the way out.
+    balloonBunch(this.world, 13, 0, -20, g, { count: 5 });
+    balloonBunch(this.world, -13, 0, -20, g, { count: 5 });
+    benchProp(this.world, 15, 0, -14, -Math.PI / 2, g);
+    benchProp(this.world, -15, 0, -14, Math.PI / 2, g);
+    flowerBed(this.world, 17, 0, -21, g, { size: 4, count: 8 });
+    flowerBed(this.world, -17, 0, -21, g, { size: 4, count: 8 });
+    lampPost(this.world, 12, 0, -12, g);
+    lampPost(this.world, -12, 0, -12, g);
   }
 
   // ---------------------------------------------------------------- district

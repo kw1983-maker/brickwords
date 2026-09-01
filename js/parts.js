@@ -378,6 +378,8 @@ export function coin(world, x, y, z, group, data = null) {
   mesh.castShadow = true;
   (group || world.root).add(mesh);
 
+  const coinGlow = glowSprite(0xffd24a, 3.2, 0.7);
+  mesh.add(coinGlow);
   const trig = world.addTrigger('coin', x, y, z, 3, 4, 3, data);
   trig.group = group;
   trig.mesh = mesh;
@@ -684,6 +686,7 @@ export function treeProp(world, x, y, z, group, opts = {}) {
   // the screen with brown.
   const trunk = part(1.4, h, 1.4, bc('Reddish brown'), { studs: false, castShadow: false });
   world.place(trunk, x, y + h / 2, z, { parent: g, kind: 'brick' });
+  groundShadow(world, x, z, (opts.palm ? 4.2 : 4.6), g, { opacity: 0.5 });
 
   const leaf = opts.leaf || bc('Bright green');
   const crown = new THREE.Group();
@@ -918,6 +921,8 @@ export function shopFront(world, x, y, z, opts = {}) {
   const body = part(w, h, d, wall, { repeat: [w, d] });
   world.place(body, x, y + h / 2, z, { parent: g });
 
+  groundShadow(world, x, z, Math.max(w, d) * 0.62, g, { opacity: 0.7 });
+
   // A darker course at the pavement, and a two-slab roof: Roblox roofs are
   // bricks stepped in, never a mesh.
   const skirt = part(w + 1.6, 1.4, d + 1.6, roof, { repeat: [w, d] });
@@ -1023,6 +1028,9 @@ export function lampPost(world, x, y, z, group, opts = {}) {
   cap.position.set(x, y + h + 0.9, z);
   g.add(cap);
 
+  const lampGlow = glowSprite(0xffe08a, 6.5, 0.6);
+  lampGlow.position.set(x, y + h + 0.1, z);
+  g.add(lampGlow);
   const lamp = part(1.5, 1.5, 1.5, bc('Cool yellow'), { studs: false, castShadow: false, neon: true });
   lamp.position.set(x, y + h + 0.1, z);
   g.add(lamp);
@@ -1687,6 +1695,10 @@ export function makeSky(scene) {
   scene.add(sun);
   scene.add(sun.target);
 
+  const sunGlow = glowSprite(0xfff2c4, 150, 0.55);
+  sunGlow.position.set(420, 640, 320);
+  scene.add(sunGlow);
+
   scene.userData.sun = sun;
   return { sun, hemi, dome };
 }
@@ -1725,4 +1737,82 @@ export function makeEnvironment(renderer, scene) {
   scene.environment = rt.texture;
   tex.dispose();
   pmrem.dispose();
+}
+
+
+// ---- HD polish: soft contact shadows + additive glows (THREE-core only) -----
+
+let _SHADOW_TEX = null;
+function shadowTexture() {
+  if (_SHADOW_TEX) return _SHADOW_TEX;
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(64, 64, 3, 64, 64, 64);
+  grd.addColorStop(0, 'rgba(0,0,0,0.42)');
+  grd.addColorStop(0.55, 'rgba(0,0,0,0.20)');
+  grd.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  _SHADOW_TEX = t; return t;
+}
+
+// A soft radial blob laid flat on the ground under an object. This is the cheap
+// "contact shadow" / ambient-occlusion cue that stops props reading as if they
+// float; the real sun shadow still lands on top of it near the player.
+export function groundShadow(world, x, z, radius, group, opts = {}) {
+  const g = group || world.root;
+  const mat = new THREE.MeshBasicMaterial({
+    map: shadowTexture(), transparent: true, depthWrite: false,
+    opacity: opts.opacity !== undefined ? opts.opacity : 1,
+  });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(radius * 2, radius * 2), mat);
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(x, (opts.y || 0) + 0.06, z);
+  m.renderOrder = -1;
+  m.receiveShadow = false; m.castShadow = false;
+  g.add(m);
+  return m;
+}
+
+// The same blob as a child of a moving object (parented at its local origin),
+// so the player carries a contact shadow with them as they walk.
+export function attachGroundShadow(target, radius, opts = {}) {
+  const mat = new THREE.MeshBasicMaterial({
+    map: shadowTexture(), transparent: true, depthWrite: false,
+    opacity: opts.opacity !== undefined ? opts.opacity : 0.85,
+  });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(radius * 2, radius * 2), mat);
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(0, (opts.y || 0) + 0.08, 0);
+  m.renderOrder = -1;
+  m.receiveShadow = false; m.castShadow = false;
+  target.add(m);
+  return m;
+}
+
+let _GLOW_TEX = null;
+function glowTexture() {
+  if (_GLOW_TEX) return _GLOW_TEX;
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grd.addColorStop(0, 'rgba(255,255,255,1)');
+  grd.addColorStop(0.22, 'rgba(255,255,255,0.7)');
+  grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
+  _GLOW_TEX = new THREE.CanvasTexture(c);
+  return _GLOW_TEX;
+}
+
+// An additive glow sprite — the bloom cue for anything that should read as
+// lit: coins, lanterns, the sun. Cheaper than a post-process bloom pass and,
+// unlike one, safe through the import-stripping build.
+export function glowSprite(colour, size, opacity = 0.8) {
+  const mat = new THREE.SpriteMaterial({
+    map: glowTexture(), color: colour, transparent: true,
+    blending: THREE.AdditiveBlending, depthWrite: false, opacity,
+  });
+  const s = new THREE.Sprite(mat);
+  s.scale.set(size, size, 1);
+  return s;
 }
