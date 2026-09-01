@@ -1569,7 +1569,7 @@ body.touch .jump-btn { display: block; }
       </div>
     </details>
     <p id="title-hint" class="hint-text">Tip: the first run needs internet to fetch the 3D engine.</p>
-    <p class="build-stamp">build 2026-09-01 13:16</p>
+    <p class="build-stamp">build 2026-09-01 13:18</p>
   </div>
 </div>
 
@@ -8303,7 +8303,7 @@ function boot() {
   window.addEventListener('resize', onResize);
 
   load();
-  UI.setLoad(0.92, 'Saving to the cloud…');
+  UI.setLoad(0.92, 'Checking your save…');
   initCloud().then((ok) => {
     if (!ok) return;
     return cloudPull();
