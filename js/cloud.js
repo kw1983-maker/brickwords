@@ -15,10 +15,8 @@ const FB_CONFIG = {
 const FB_VERSION = '10.12.5';
 const SAVE_DEBOUNCE_MS = 1500;
 
-let fbAuth = null;
 let fbDb = null;
 let fbApi = null;
-let cloudUid = null;
 let cloudReady = false;
 let cloudSaveTimer = null;
 
@@ -41,37 +39,30 @@ async function initCloud() {
   if (cloudReady) return true;
   try {
     const appMod = await import(`https://www.gstatic.com/firebasejs/${FB_VERSION}/firebase-app.js`);
-    const authMod = await import(`https://www.gstatic.com/firebasejs/${FB_VERSION}/firebase-auth.js`);
     const dbMod = await import(`https://www.gstatic.com/firebasejs/${FB_VERSION}/firebase-firestore.js`);
 
-    const app = appMod.initializeApp(FB_CONFIG);
-    fbAuth = authMod.getAuth(app);
-    fbDb = dbMod.getFirestore(app);
-    fbApi = { ...authMod, ...dbMod };
+    appMod.initializeApp(FB_CONFIG);
+    fbDb = dbMod.getFirestore();
+    fbApi = dbMod;
 
-    await new Promise((resolve, reject) => {
-      const timeout = setTimeout(resolve, 8000);
-      fbApi.onAuthStateChanged(fbAuth, (user) => {
-        if (!user) return;
-        cloudUid = user.uid;
-        clearTimeout(timeout);
-        resolve();
-      }, reject);
-      fbApi.signInAnonymously(fbAuth).catch(reject);
-    });
-
-    cloudReady = !!cloudUid;
-    return cloudReady;
+    cloudReady = true;
+    return true;
   } catch (e) {
     console.warn('[BrickWords] cloud save unavailable:', e.message || e);
     return false;
   }
 }
 
-async function cloudPull() {
-  if (!cloudReady || !cloudUid) return null;
+function playerIdFromName(name) {
+  const s = (name || 'player').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 16);
+  return s || 'player';
+}
+
+async function cloudPull(name) {
+  if (!cloudReady) return null;
+  const playerId = playerIdFromName(name);
   try {
-    const ref = fbApi.doc(fbDb, 'players', cloudUid);
+    const ref = fbApi.doc(fbDb, 'players', playerId);
     const snap = await fbApi.getDoc(ref);
     if (!snap.exists()) return null;
     const data = snap.data();
@@ -83,7 +74,7 @@ async function cloudPull() {
 }
 
 function scheduleCloudSave(state) {
-  if (!cloudReady || !cloudUid) return;
+  if (!cloudReady) return;
   const payload = snapshotFromState(state);
   if (cloudSaveTimer) clearTimeout(cloudSaveTimer);
   cloudSaveTimer = setTimeout(() => {
@@ -93,9 +84,10 @@ function scheduleCloudSave(state) {
 }
 
 async function flushCloudSave(payload, name) {
-  if (!cloudReady || !cloudUid) return;
+  if (!cloudReady) return;
+  const playerId = playerIdFromName(name || payload.name);
   try {
-    const ref = fbApi.doc(fbDb, 'players', cloudUid);
+    const ref = fbApi.doc(fbDb, 'players', playerId);
     await fbApi.setDoc(ref, {
       name: name || payload.name || 'Player',
       save: payload,

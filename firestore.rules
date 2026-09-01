@@ -1,8 +1,9 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Pupil saves keyed by their chosen name (1–16 letters, numbers, _ or -).
     match /players/{playerId} {
-      allow read, write: if request.auth != null && request.auth.uid == playerId;
+      allow read, write: if playerId.matches('^[a-z0-9_-]{1,16}$');
     }
   }
 }

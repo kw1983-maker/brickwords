@@ -111,7 +111,7 @@ function boot() {
   UI.setLoad(0.92, 'Checking your save…');
   initCloud().then((ok) => {
     if (!ok) return;
-    return cloudPull();
+    return cloudPull(state.name);
   }).then((remote) => {
     if (remote) applyCloudSave(remote);
   }).finally(() => {
