@@ -164,7 +164,7 @@ export class Island {
     this.buildPlaza(g);
     this.scatterCoins(g);
     this.buildFairground(g);
-    climbTower(this.world, 58, 58, g, { rungs: 9 });
+    climbTower(this.world, 58, 58, g, { rungs: 10, face: -1 });
     this.scatterTrees(g);
 
     this.flagGroup = null;
@@ -538,7 +538,7 @@ export class Island {
       // scattered. Without this a copse grows inside the train's loop.
       if (Math.hypot(x + 58, z - 58) < 26) continue;
       if (Math.hypot(x - 58, z + 58) < 28) continue;
-      if (Math.hypot(x - 58, z - 58) < 24) continue;   // the climb tower plot
+      if (Math.hypot(x - 58, z - 58) < 30) continue;   // the climb tower plot
       treeProp(this.world, x, 0, z, g, {
         height: randInt(5, 9),
         spin: rand(0, Math.PI / 2),

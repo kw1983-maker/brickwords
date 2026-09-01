@@ -1572,7 +1572,7 @@ body.touch .jump-btn { display: block; }
       </div>
     </details>
     <p id="title-hint" class="hint-text">Tip: the first run needs internet to fetch the 3D engine.</p>
-    <p class="build-stamp">build 2026-09-01 21:31</p>
+    <p class="build-stamp">build 2026-09-01 21:40</p>
   </div>
 </div>
 
@@ -2665,79 +2665,73 @@ function houseBlock(world, x, y, z, w, d, h, wall, roof, group, opts = {}) {
   return g;
 }
 
-// A studded LEGO roller: a horizontal cylinder you stand on top of, the rung of
-// a climb. Solid, with the stud texture wrapped around the curved face so it
-// reads as brick. Collides as its bounding box, so the flat crown is the floor.
-function climbRoller(world, x, y, z, len, radius, axis, colour, group) {
+// A studded horizontal roller — one rung of a climb tower. The curved face is
+// visual only; a thin studded cap on the crown is what you stand on, because a
+// full cylinder AABB blocks jumps into the rung above.
+function climbRung(world, x, y, z, len, radius, axis, colour, group) {
   const g = group || world.root;
   const tex = studTexture().clone();
   tex.needsUpdate = true;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.anisotropy = 16;
-  // one stud tile per stud around the circumference and along the length
   tex.repeat.set(Math.max(4, Math.round(2 * Math.PI * radius)), Math.max(2, Math.round(len)));
   const mat = new THREE.MeshStandardMaterial({
     color: colour, map: tex, roughness: 0.4, metalness: 0, envMapIntensity: 1.25,
   });
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, len, 26), mat);
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, len, 24), mat);
   mesh.castShadow = true; mesh.receiveShadow = true;
-  // A cylinder is modelled upright; lay it down along X or Z.
   if (axis === 'x') mesh.rotation.z = Math.PI / 2;
   else mesh.rotation.x = Math.PI / 2;
   world.place(mesh, x, y, z, { parent: g, solid: false });
 
-  // A full AABB around a lying cylinder blocks jumps into the rung above — the
-  // hull hits the underside of the box long before the feet can land on top.
-  // Only the crown is solid: a thin invisible cap at the top of the roller.
   const d = radius * 2;
-  const capH = 0.55;
-  const capW = axis === 'x' ? len : d * 0.82;
-  const capD = axis === 'x' ? d * 0.82 : len;
+  const capH = 0.65;
+  const capW = axis === 'x' ? len : d;
+  const capD = axis === 'x' ? d : len;
   const cap = part(capW, capH, capD, colour, { repeat: [capW, capD] });
-  cap.visible = false;
   world.place(cap, x, y + radius - capH / 2, z, { parent: g, kind: 'brick' });
   return mesh;
 }
 
-// A climb: a run of rollers stepping upward in a zig-zag. Each rung is a
-// 2-stud step (Roblox's automatic ledge climb) with a short sideways hop, so a
-// child can walk-and-step their way up without precision jumping. Ends on a
-// small top deck with a balloon, the reward for getting up there.
+// A vertical climb like the reference: a pink pillar with thick studded rollers
+// cantilevered off it, each rung a little higher and further out. Jump from the
+// crown of one to the next — rise 3.0 and reach 1.6 are sized for JUMP_RISE.
 function climbTower(world, x, z, group, opts = {}) {
   const g = group || world.root;
-  const rungs = opts.rungs || 9;
-  const rise = opts.rise || 2.0;          // <= STEP_HEIGHT — walk up each rung
-  const step = opts.step || 3.5;          // comfortable sideways hop
-  const radius = opts.radius || 1.6;
-  const len = opts.len || 9;
-  const cols = opts.colours || [0xe85fb0, 0x9a6fd6, 0xd94fc0, 0x7d5fc8];
+  const rungs = opts.rungs || 10;
+  const rise = opts.rise || 3.0;
+  const reach = opts.reach || 1.6;
+  const len = opts.len || 10;
+  const radius = opts.radius || 1.35;
+  const face = opts.face !== undefined ? opts.face : 1; // +1 = rungs extend in +x
+  const cols = opts.colours || [0xe85fb0, 0x9a6fd6];
+  const padTop = 2;
+  const topY = padTop + rise * rungs;
+  const spineH = topY + 5;
+  const totalReach = reach * Math.max(0, rungs - 1);
+  const padW = len + totalReach + 8;
+  const padD = len + 4;
+  const padCx = x + face * (totalReach / 2 + len / 2 + 1);
 
-  // A base pad so the first rung is a step up from the ground, not a mid-air
-  // start, and so the whole thing reads as one built structure.
-  const pad = part(len + 4, 2, len + 4, 0x8f6fd6, { repeat: [len + 4, len + 4] });
-  world.place(pad, x, 1, z, { parent: g, kind: 'brick' });
-  groundShadow(world, x, z, (len + 4) * 0.62, g, { opacity: 0.6 });
+  const pad = part(padW, 2, padD, 0x8f6fd6, { repeat: [padW, padD] });
+  world.place(pad, padCx, 1, z, { parent: g, kind: 'brick' });
+  groundShadow(world, padCx, z, padW * 0.55, g, { opacity: 0.6 });
 
-  // Zig-zag: each rung alternates the axis it lies along and shifts sideways,
-  // so the climber turns as they go up rather than jumping straight up a wall.
-  // The first rung's cap top sits at pad-top + STEP_HEIGHT (4 studs) so it is a
-  // single step up from the ground; later rungs rise by `rise` (2 studs each).
-  let cx = x, cz = z, cy = 4 - radius;
+  const spine = part(1.6, spineH, 1.6, cols[0], { repeat: [2, spineH / 2] });
+  world.place(spine, x, spineH / 2, z, { parent: g, kind: 'brick' });
+
+  let lastCx = x;
   for (let i = 0; i < rungs; i++) {
-    const axis = i % 2 ? 'x' : 'z';
-    if (i > 0) {
-      cy += rise;
-      if (axis === 'x') cx += (i % 4 < 2 ? step : -step);
-      else cz += (i % 4 < 2 ? step : -step);
-    }
-    climbRoller(world, cx, cy, cz, len, radius, axis, cols[i % cols.length], g);
+    const top = padTop + rise * (i + 1);
+    const cy = top - radius;
+    const cx = x + face * (len / 2 + 1.1 + i * reach);
+    lastCx = cx;
+    climbRung(world, cx, cy, z, len, radius, 'x', cols[i % cols.length], g);
   }
 
-  // The top deck.
-  const deckY = cy + rise;
-  const deck = part(len, 1.6, len, 0xf5cd30, { repeat: [len, len] });
-  world.place(deck, cx, deckY, cz, { parent: g, kind: 'brick' });
-  balloonBunch(world, cx, deckY + 0.8, cz, g, { count: 5 });
+  const deck = part(len, 1.4, len, 0xf5cd30, { repeat: [len, len] });
+  world.place(deck, lastCx, topY + 0.7, z, { parent: g, kind: 'brick' });
+  balloonBunch(world, lastCx, topY + 1.5, z, g, { count: 5 });
   return g;
 }
 
@@ -6962,7 +6956,7 @@ class Island {
     this.buildPlaza(g);
     this.scatterCoins(g);
     this.buildFairground(g);
-    climbTower(this.world, 58, 58, g, { rungs: 9 });
+    climbTower(this.world, 58, 58, g, { rungs: 10, face: -1 });
     this.scatterTrees(g);
 
     this.flagGroup = null;
@@ -7336,7 +7330,7 @@ class Island {
       // scattered. Without this a copse grows inside the train's loop.
       if (Math.hypot(x + 58, z - 58) < 26) continue;
       if (Math.hypot(x - 58, z + 58) < 28) continue;
-      if (Math.hypot(x - 58, z - 58) < 24) continue;   // the climb tower plot
+      if (Math.hypot(x - 58, z - 58) < 30) continue;   // the climb tower plot
       treeProp(this.world, x, 0, z, g, {
         height: randInt(5, 9),
         spin: rand(0, Math.PI / 2),
