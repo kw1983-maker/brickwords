@@ -23,6 +23,7 @@ import { Island, ISLE_WADE } from './island.js';
 import { missLine, hitLine } from './quests.js';
 import { Guide } from './npc.js';
 import { UI } from './ui.js';
+import { initCloud, cloudPull, scheduleCloudSave, flushCloudSave, cloudEnabled } from './cloud.js';
 
 const SAVE_KEY = 'brickwords.obby.v1';
 const RESPAWN_SECONDS = 2;
@@ -90,7 +91,7 @@ function boot() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
+  renderer.toneMappingExposure = 1.18;
   document.getElementById('game').appendChild(renderer.domElement);
 
   scene = new THREE.Scene();

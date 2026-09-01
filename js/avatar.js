@@ -148,77 +148,114 @@ export class Avatar {
       return pivot;
     };
 
-    this.torso = box(...R6.torso, L.shirt);
-    this.torso.position.y = 3;
-    this.root.add(this.torso);
+    // ---- A LEGO minifigure mapped onto the R6 joints. The six pivots keep
+    // their positions (hips at y=2, shoulders up top, head above) so the walk
+    // swing, the jump pose and the death burst are unchanged — only the shapes
+    // hanging off them change from bare boxes into a minifig.
+    const solid = (geo, colour, rough = 0.44) => {
+      const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: colour, roughness: rough, metalness: 0 }));
+      m.castShadow = true; m.receiveShadow = false;
+      return m;
+    };
+    // One shared skin material, so recolouring the head recolours the neck and
+    // crown stud with it.
+    this.headMat = new THREE.MeshStandardMaterial({ color: L.skin, roughness: 0.42, metalness: 0 });
 
-    this.legL = limb(box(...R6.leg, L.pants), -0.5, 2, 0);
-    this.legR = limb(box(...R6.leg, L.pants), 0.5, 2, 0);
-    this.armL = limb(box(...R6.arm, L.skin), -1.5, 4, 0);
-    this.armR = limb(box(...R6.arm, L.skin), 1.5, 4, 0);
+    // HIPS + LEGS — legs hang from hip pivots at y=2 (feet at y=0), as R6.
+    this.hips = box(1.9, 0.74, 1.06, L.pants);
+    this.hips.position.y = 2.08;
+    this.root.add(this.hips);
 
-    // ---- what the reference sheet's minifig has that six bare boxes do not.
-    // All of it hangs off the six parts rather than adding a seventh joint, so
-    // R6 is still R6: the walk, the death burst and the collision hull are
-    // untouched, and explode() carries each piece away with the part it is on.
+    this.legL = limb(box(0.82, 1.9, 1.0, L.pants), -0.46, 2.0, 0);
+    this.legR = limb(box(0.82, 1.9, 1.0, L.pants), 0.46, 2.0, 0);
 
-    // Sleeves and hands. A Robloxian in a shirt has coloured upper arms and
-    // skin below — it is the single cheapest thing that makes the rig read as
-    // dressed rather than as painted one colour from the neck down.
-    this.sleeves = [this.armL, this.armR].map((pivot) => {
-      const arm = pivot.children[0];
-      const sleeve = box(1.06, 1.15, 1.06, L.shirt);
-      sleeve.position.y = 0.42;
-      arm.add(sleeve);
-      return sleeve;
-    });
-
-    // Shoes, standing a little proud of the shin and reaching forward.
+    // Boots — the minifig foot, a touch wider and reaching forward.
     this.shoes = [this.legL, this.legR].map((pivot) => {
       const leg = pivot.children[0];
-      const shoe = box(1.08, 0.5, 1.3, bc('Institutional white'));
-      shoe.position.set(0, -0.78, 0.14);
+      const shoe = box(0.92, 0.44, 1.24, bc('Really black'));
+      shoe.position.set(0, -0.88, 0.12);
       leg.add(shoe);
       return shoe;
     });
 
-    // The head. Roblox's head part is 2 × 1 × 1 blown up by a 1.25 mesh scale,
-    // which is why a Robloxian's head is a shade wider than its torso.
-    this.head = box(2.0, 1.15, 1.15, L.skin);
-    this.head.position.y = 4.6;
+    // TORSO — slightly trapezoidal: a body box with a narrower shoulder yoke.
+    this.torso = box(1.74, 1.5, 1.0, L.shirt);
+    this.torso.position.y = 3.05;
+    this.root.add(this.torso);
+    this.shoulders = box(1.9, 0.36, 1.04, L.shirt);
+    this.shoulders.position.y = 0.76;
+    this.torso.add(this.shoulders);
+
+    // ARMS + C-HANDS — pivot at the shoulders and animate about x. The inward
+    // tilt lives on the arm MESH (z), leaving the pivot's x free for the walk,
+    // and each arm ends in the iconic LEGO C-hand.
+    const buildArm = (side) => {
+      const pivot = new THREE.Group();
+      pivot.position.set(side * 1.02, 3.66, 0);
+      const arm = box(0.66, 1.42, 0.72, L.shirt);
+      arm.position.y = -0.71;
+      arm.rotation.z = -side * 0.14;
+      const cuff = box(0.62, 0.36, 0.68, L.skin);
+      cuff.position.y = -0.82;
+      arm.add(cuff);
+      const hand = solid(new THREE.TorusGeometry(0.3, 0.13, 10, 20, Math.PI * 1.5), L.skin);
+      hand.rotation.x = Math.PI / 2;
+      hand.rotation.z = -Math.PI * 0.25;
+      hand.position.set(0, -1.12, 0.14);
+      arm.add(hand);
+      pivot.add(arm);
+      this.root.add(pivot);
+      pivot.userData = { hand, cuff };
+      return pivot;
+    };
+    this.armL = buildArm(-1);
+    this.armR = buildArm(1);
+    this.sleeves = [this.armL.children[0], this.armR.children[0]];
+    this.hands = [this.armL.userData.hand, this.armR.userData.hand];
+    this.cuffs = [this.armL.userData.cuff, this.armR.userData.cuff];
+
+    // HEAD — an upright cylinder with a neck, a crown stud and the classic face.
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.34, 16), this.headMat);
+    neck.position.y = 3.92; neck.castShadow = true;
+    this.root.add(neck);
+    this.head = new THREE.Mesh(new THREE.CylinderGeometry(0.73, 0.7, 1.24, 24), this.headMat);
+    this.head.castShadow = true;
+    this.head.position.y = 4.68;
     this.root.add(this.head);
+    const crownStud = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.18, 20), this.headMat);
+    crownStud.position.y = 0.68;
+    this.head.add(crownStud);
 
     this.faceMat = new THREE.MeshBasicMaterial({
       map: faceTexture('smile'), transparent: true, toneMapped: false,
     });
-    this.face = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 1.25), this.faceMat);
-    this.face.position.set(0, 4.6, 0.58);
+    this.face = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.04), this.faceMat);
+    this.face.position.set(0, 4.68, 0.74);
     this.root.add(this.face);
 
-    // Hair, parented to the head so it turns and flies with it. Kept low —
-    // 0.36 studs — because every hat in the shop has to sit over it.
+    // HAIR — a rounded cap with a few spiky tufts, parented to the head.
     this.hair = new THREE.Group();
     this.head.add(this.hair);
-    const hairAt = (w, hh, d, hx, hy, hz) => {
-      const m = box(w, hh, d, L.hair !== undefined ? L.hair : bc('Reddish brown'));
+    const hairCol = L.hair !== undefined ? L.hair : bc('Reddish brown');
+    const hairAt = (w, hh, d, hx, hy, hz, rx) => {
+      const m = box(w, hh, d, hairCol);
       m.position.set(hx, hy, hz);
+      if (rx) m.rotation.x = rx;
       this.hair.add(m);
       return m;
     };
     this.hairParts = [
-      hairAt(2.06, 0.28, 1.21, 0, 0.70, 0),        // the cap
-      hairAt(2.06, 0.26, 0.26, 0, 0.44, 0.50),     // the fringe
-      hairAt(2.06, 0.34, 0.22, 0, 0.40, -0.51),    // the back
-      hairAt(0.24, 0.36, 1.18, -0.92, 0.40, 0),    // the sides
-      hairAt(0.24, 0.36, 1.18, 0.92, 0.40, 0),
+      hairAt(1.5, 0.46, 1.5, 0, 0.66, 0),
+      hairAt(1.52, 0.36, 0.5, 0, 0.44, 0.56),
+      hairAt(0.52, 0.44, 0.52, -0.4, 0.92, -0.16, -0.3),
+      hairAt(0.5, 0.5, 0.5, 0.34, 0.96, 0.02, -0.22),
+      hairAt(0.44, 0.44, 0.44, 0.02, 1.0, -0.2, 0.2),
     ];
 
     if (this.wantsPack) this.buildBackpack(box);
 
     this.hatMount = new THREE.Group();
-    // The top of the hair, not the top of the skull — a cap set at 5.175 sits
-    // inside the fringe.
-    this.hatMount.position.y = 5.51;
+    this.hatMount.position.y = 5.42;
     this.root.add(this.hatMount);
     this.setHat(L.hat || 'none');
   }
@@ -237,9 +274,9 @@ export class Avatar {
     const pocket = box(0.8, 0.55, 0.18, bc('Bright blue'));
     pocket.position.set(0, -0.32, -1.06);
     this.torso.add(pocket);
-    [-0.56, 0.56].forEach((dx) => {
-      const strap = box(0.26, 1.8, 0.2, bc('Sand blue'));
-      strap.position.set(dx, 0.1, 0.55);
+    [-0.42, 0.42].forEach((dx) => {
+      const strap = box(0.17, 1.7, 0.16, bc('Dark stone grey'));
+      strap.position.set(dx, 0.16, 0.5);
       this.torso.add(strap);
     });
     this.backpack = pack;
@@ -252,21 +289,27 @@ export class Avatar {
   }
 
   setColours({ skin, shirt, pants }) {
+    const setCol = (mesh, hex) => {
+      if (!mesh) return;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      mats.forEach((m) => m.color.setHex(hex));
+    };
     if (skin !== undefined) {
       this.look.skin = skin;
-      this.head.material.forEach((m) => m.color.setHex(skin));
-      [this.armL, this.armR].forEach((p) => p.children[0].material.forEach((m) => m.color.setHex(skin)));
+      setCol(this.head, skin);
+      (this.hands || []).forEach((h) => setCol(h, skin));
+      (this.cuffs || []).forEach((c) => setCol(c, skin));
     }
     if (shirt !== undefined) {
       this.look.shirt = shirt;
-      this.torso.material.forEach((m) => m.color.setHex(shirt));
-      // The sleeves are part of the shirt, or changing it leaves two coloured
-      // cuffs behind on the arms.
-      (this.sleeves || []).forEach((s) => s.material.forEach((m) => m.color.setHex(shirt)));
+      setCol(this.torso, shirt);
+      setCol(this.shoulders, shirt);
+      (this.sleeves || []).forEach((s) => setCol(s, shirt));
     }
     if (pants !== undefined) {
       this.look.pants = pants;
-      [this.legL, this.legR].forEach((p) => p.children[0].material.forEach((m) => m.color.setHex(pants)));
+      [this.legL, this.legR].forEach((p) => setCol(p.children[0], pants));
+      setCol(this.hips, pants);
     }
   }
 
@@ -351,13 +394,13 @@ export class Avatar {
       this.armL.rotation.x = -swing;
       this.armR.rotation.x = swing;
       // The little vertical bob of a Roblox run.
-      this.torso.position.y = 3 + Math.abs(Math.sin(this.phase)) * 0.06;
+      this.torso.position.y = 3.05 + Math.abs(Math.sin(this.phase)) * 0.06;
     } else {
       this.phase = 0;
       ['armL', 'armR', 'legL', 'legR'].forEach((k) => {
         this[k].rotation.x = lerp(this[k].rotation.x, 0, 0.2);
       });
-      this.torso.position.y = lerp(this.torso.position.y, 3, 0.2);
+      this.torso.position.y = lerp(this.torso.position.y, 3.05, 0.2);
     }
 
     // The nametag hangs off the rig, and the rig turns. Copying the camera's

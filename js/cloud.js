@@ -35,7 +35,7 @@ function snapshotFromState(state) {
   };
 }
 
-async function initCloud() {
+export async function initCloud() {
   if (cloudReady) return true;
   try {
     const appMod = await import(`https://www.gstatic.com/firebasejs/${FB_VERSION}/firebase-app.js`);
@@ -58,7 +58,7 @@ function playerIdFromName(name) {
   return s || 'player';
 }
 
-async function cloudPull(name) {
+export async function cloudPull(name) {
   if (!cloudReady) return null;
   const playerId = playerIdFromName(name);
   try {
@@ -73,7 +73,7 @@ async function cloudPull(name) {
   }
 }
 
-function scheduleCloudSave(state) {
+export function scheduleCloudSave(state) {
   if (!cloudReady) return;
   const payload = snapshotFromState(state);
   if (cloudSaveTimer) clearTimeout(cloudSaveTimer);
@@ -83,7 +83,7 @@ function scheduleCloudSave(state) {
   }, SAVE_DEBOUNCE_MS);
 }
 
-async function flushCloudSave(payload, name) {
+export async function flushCloudSave(payload, name) {
   if (!cloudReady) return;
   const playerId = playerIdFromName(name || payload.name);
   try {
@@ -98,6 +98,6 @@ async function flushCloudSave(payload, name) {
   }
 }
 
-function cloudEnabled() {
+export function cloudEnabled() {
   return cloudReady;
 }

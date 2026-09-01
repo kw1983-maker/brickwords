@@ -37,7 +37,7 @@ import {
   wordStand, questBeam, answerFlag, coin, signBoard, boardFace, topDecal,
   decalPlane, canvasTexture, UI_FONT, EMOJI_FONT,
   shopFront, lampPost, hedgeRow, flowerBed, benchProp, balloonBunch,
-  ferrisWheel, trainRide, signLetters, pavingTexture, distantIsles,
+  ferrisWheel, trainRide, signLetters, pavingTexture, distantIsles, bushProp,
 } from './parts.js';
 import { QuestSet } from './quests.js';
 import { Guide } from './npc.js';
@@ -508,7 +508,7 @@ export class Island {
     // The quiet corners between the streets. Anything near the plaza, a street
     // or a district would be something to run into, so those areas are skipped.
     let placed = 0;
-    for (let tries = 0; tries < 300 && placed < 44; tries++) {
+    for (let tries = 0; tries < 520 && placed < 64; tries++) {
       const x = rand(-95, 95);
       const z = rand(-95, 95);
       if (Math.abs(x) < 12 || Math.abs(z) < 12) continue;              // the streets
@@ -532,6 +532,14 @@ export class Island {
         leaf: bc(Math.random() < 0.25 ? 'Br. yellowish green' : 'Bright green'),
       });
       placed++;
+      // Undergrowth: a bush or two beside most trees, plus the odd wildflower
+      // clump, so scattered trees read as a park with no bare ground between.
+      for (let b = 0, clumps = randInt(1, 2); b < clumps; b++) {
+        bushProp(this.world, x + rand(-4.5, 4.5), 0, z + rand(-4.5, 4.5), g, { size: rand(1.8, 3.2) });
+      }
+      if (Math.random() < 0.22) {
+        flowerBed(this.world, x + rand(-6, 6), 0, z + rand(-6, 6), g, { size: rand(3, 4.5), count: randInt(6, 9) });
+      }
     }
   }
 

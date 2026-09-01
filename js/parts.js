@@ -747,7 +747,7 @@ export function pavingTexture() {
   const c = document.createElement('canvas');
   c.width = c.height = S;
   const g = c.getContext('2d');
-  g.fillStyle = '#9d907c';
+  g.fillStyle = '#a3927a';
   g.fillRect(0, 0, S, S);
 
   for (let r = 0; r < n; r++) {
@@ -756,8 +756,8 @@ export function pavingTexture() {
       const off = (r % 2) * (cell / 2);
       const x = (k * cell + off) % S;
       const y = r * cell;
-      const tone = 196 + ((r * 7 + k * 13) % 5) * 5;
-      const stone = `rgb(${tone}, ${tone - 12}, ${tone - 32})`;
+      const tone = 200 + ((r * 7 + k * 13) % 5) * 5;
+      const stone = `rgb(${tone + 8}, ${tone - 8}, ${tone - 40})`;
       g.fillStyle = stone;
       g.fillRect(x + 1.2, y + 1.2, cell - 2.4, cell - 2.4);
       // A lit top edge and a shadowed bottom one give the stone thickness.
@@ -827,39 +827,41 @@ export function paintTop(mesh, tex, sx, sz, studsPerTile = 4) {
 // shadow — they exist to fill the skyline and cost almost nothing.
 export function distantIsles(world, group, opts = {}) {
   const g = group || world.root;
-  const n = opts.count || 16;
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2 + (i % 3) * 0.11;
-    const dist = 300 + ((i * 67) % 230);
-    const x = Math.cos(a) * dist;
-    const z = Math.sin(a) * dist;
-    const w = 70 + ((i * 41) % 110);
-    const layers = 3 + (i % 3);
-    for (let k = 0; k < layers; k++) {
-      const f = 1 - k / (layers + 0.6);
-      const colour = k === 0 ? bc('Cool yellow')
-        : k === layers - 1 ? bc('Br. yellowish green')
-          : bc('Bright green');
-      const slab = part(w * f, 9, w * f * 0.8, colour, { studs: false, castShadow: false });
-      slab.receiveShadow = false;
-      slab.position.set(x, -2 + k * 7, z);
-      slab.rotation.y = a;
-      g.add(slab);
+
+  // Two rings of hills. The near ring is the low green landfall; the far ring
+  // sits much further out and stands much taller, so the horizon has real depth
+  // instead of one band of bumps. All stepped slabs, never solid, never lit for
+  // shadow: it exists only to fill the skyline and costs almost nothing.
+  const ring = (n, base, spread, minW, wVar, minH, hVar, phase) => {
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + (i % 3) * 0.11 + phase;
+      const dist = base + ((i * 67) % spread);
+      const x = Math.cos(a) * dist;
+      const z = Math.sin(a) * dist;
+      const w = minW + ((i * 41) % wVar);
+      const layers = minH + (i % hVar);
+      const step = 6 + (i % 3) * 1.6;
+      for (let k = 0; k < layers; k++) {
+        const f = 1 - k / (layers + 0.7);
+        const top = k === layers - 1;
+        const colour = k === 0 ? bc('Cool yellow')
+          : (top && layers >= 6) ? bc('Institutional white')
+            : top ? bc('Br. yellowish green')
+              : bc('Bright green');
+        const slab = part(w * f, step + 3, w * f * 0.8, colour, { studs: false, castShadow: false });
+        slab.receiveShadow = false;
+        slab.position.set(x, -3 + k * step, z);
+        slab.rotation.y = a;
+        g.add(slab);
+      }
     }
-  }
+  };
+
+  ring(opts.count || 18, 300, 190, 70, 90, 3, 3, 0);
+  ring(14, 620, 320, 150, 180, 5, 4, 0.4);
   return g;
 }
 
-// =========================================================== the town kit ===
-// Everything below is street furniture: the pieces that turn four coloured
-// boxes at the end of four streets into somewhere that looks lived in. None of
-// it is solid except the shopfront's own block, because a child running an open
-// world should never be stopped by a flower bed.
-
-// A word spelled out in chunky coloured blocks, the way a Roblox shop signs
-// itself. One box per letter with the letter decalled on its front and back —
-// modelling real glyph geometry out of bricks is a week of work that reads no
-// better at thirty studs.
 export function signLetters(text, height = 3.4, group) {
   const g = group || new THREE.Group();
   const chars = String(text).toUpperCase().slice(0, 9).split('');
@@ -1648,7 +1650,7 @@ export function makeSky(scene) {
 
   // Roblox's outdoor lighting is high-key with a cool fill: a bright warm sun
   // against a blue sky bounce, and shadows that stay blue rather than going grey.
-  const hemi = new THREE.HemisphereLight(0xbfe0ff, 0x6f7a55, 0.55);
+  const hemi = new THREE.HemisphereLight(0xcfe8ff, 0x8a7a4e, 0.50);
   scene.add(hemi);
 
   // A dim fill from behind the sun. Two of the island's four streets face away
@@ -1656,7 +1658,7 @@ export function makeSky(scene) {
   // awnings came out olive — a white awning stripe read as army green. This is
   // the standard second light of a three-point rig, at a quarter strength and
   // casting nothing, so it costs one more dot product per fragment and no map.
-  const fill = new THREE.DirectionalLight(0xbcd8ff, 0.55);
+  const fill = new THREE.DirectionalLight(0xd6e2ee, 0.42);
   fill.position.set(-150, 130, -120);
   scene.add(fill);
 
@@ -1665,9 +1667,9 @@ export function makeSky(scene) {
   // whose streets run away from the sun get no key light at all and a white
   // awning stripe reads as grey. A directional fill cannot fix that on its own;
   // it only moves the problem to whichever face is turned away from IT.
-  scene.add(new THREE.AmbientLight(0xffffff, 0.34));
+  scene.add(new THREE.AmbientLight(0xfff1dd, 0.30));
 
-  const sun = new THREE.DirectionalLight(0xfff4dc, 2.6);
+  const sun = new THREE.DirectionalLight(0xffeec2, 2.9);
   sun.position.set(120, 220, 90);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
