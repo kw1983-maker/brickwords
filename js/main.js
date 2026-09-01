@@ -7,7 +7,7 @@ import {
   DEFAULT_AVATAR, bc, clamp, GRAVITY, WALKSPEED, JUMPPOWER,
   JUMP_RISE, JUMP_REACH, SAFE_GAP,
 } from './rbx.js';
-import { PartWorld, makeSky, keepSunOver } from './parts.js';
+import { PartWorld, makeSky, keepSunOver, makeEnvironment } from './parts.js';
 import { Avatar, HATS } from './avatar.js';
 import { OrbitCamera } from './camera.js';
 import { Humanoid } from './controller.js';
@@ -100,6 +100,7 @@ function boot() {
   clock = new THREE.Clock();
 
   makeSky(scene);
+  makeEnvironment(renderer, scene);
   initAudio();
   initSpeech();
   validateWords();

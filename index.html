@@ -1569,7 +1569,7 @@ body.touch .jump-btn { display: block; }
       </div>
     </details>
     <p id="title-hint" class="hint-text">Tip: the first run needs internet to fetch the 3D engine.</p>
-    <p class="build-stamp">build 2026-09-01 16:21</p>
+    <p class="build-stamp">build 2026-09-01 20:47</p>
   </div>
 </div>
 
@@ -2011,7 +2011,7 @@ function canvasTexture(w, h, draw) {
   const g = c.getContext('2d');
   draw(g, w, h);
   const t = new THREE.CanvasTexture(c);
-  t.anisotropy = 8;
+  t.anisotropy = 16;
   t.colorSpace = THREE.SRGBColorSpace;
   t.needsUpdate = true;
   return t;
@@ -2760,7 +2760,7 @@ function pavingTexture() {
   }
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.anisotropy = 8;
+  t.anisotropy = 16;
   t.colorSpace = THREE.SRGBColorSpace;
   PAVE_TEX = t;
   return t;
@@ -2785,7 +2785,7 @@ function grassTexture() {
   }
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.anisotropy = 8;
+  t.anisotropy = 16;
   t.colorSpace = THREE.SRGBColorSpace;
   GRASS_TEX = t;
   return t;
@@ -3637,7 +3637,7 @@ function makeSky(scene) {
 
   // Roblox's outdoor lighting is high-key with a cool fill: a bright warm sun
   // against a blue sky bounce, and shadows that stay blue rather than going grey.
-  const hemi = new THREE.HemisphereLight(0xcfe8ff, 0x8a7a4e, 0.50);
+  const hemi = new THREE.HemisphereLight(0xcfe8ff, 0x8a7a4e, 0.42);
   scene.add(hemi);
 
   // A dim fill from behind the sun. Two of the island's four streets face away
@@ -3654,12 +3654,12 @@ function makeSky(scene) {
   // whose streets run away from the sun get no key light at all and a white
   // awning stripe reads as grey. A directional fill cannot fix that on its own;
   // it only moves the problem to whichever face is turned away from IT.
-  scene.add(new THREE.AmbientLight(0xfff1dd, 0.30));
+  scene.add(new THREE.AmbientLight(0xfff1dd, 0.20));
 
   const sun = new THREE.DirectionalLight(0xffeec2, 2.9);
   sun.position.set(120, 220, 90);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.mapSize.set(4096, 4096);
   // A tight shadow box, because it FOLLOWS THE PLAYER (see keepSunOver below).
   // Fixed at the origin it had to cover the whole world, which spent the same
   // 2048 pixels over six times the area and turned every shadow to mush — and
@@ -3685,6 +3685,33 @@ function keepSunOver(scene, pos) {
   sun.position.set(pos.x + 120, pos.y + 220, pos.z + 90);
   sun.target.position.set(pos.x, pos.y, pos.z);
   sun.target.updateMatrixWorld();
+}
+
+
+// Image-based environment lighting. A PMREM-filtered sky/ground gradient fed to
+// scene.environment gives every MeshStandardMaterial soft, direction-aware
+// ambient and a faint sheen on its rounded edges — the single biggest step
+// from a flat-lit toy scene to an "HD" one. Uses only THREE core, so the build
+// (which strips module imports) is unaffected.
+function makeEnvironment(renderer, scene) {
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const c = document.createElement('canvas');
+  c.width = 32; c.height = 128;
+  const g = c.getContext('2d');
+  const grad = g.createLinearGradient(0, 0, 0, 128);
+  grad.addColorStop(0.00, '#eaf3ff');   // zenith
+  grad.addColorStop(0.42, '#cfe6fb');   // sky
+  grad.addColorStop(0.50, '#c9d8b4');   // horizon haze
+  grad.addColorStop(0.62, '#9fae86');   // near ground
+  grad.addColorStop(1.00, '#7d6f52');   // ground bounce
+  g.fillStyle = grad; g.fillRect(0, 0, 32, 128);
+  const tex = new THREE.CanvasTexture(c);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const rt = pmrem.fromEquirectangular(tex);
+  scene.environment = rt.texture;
+  tex.dispose();
+  pmrem.dispose();
 }
 
 // ===== js/avatar.js =====
@@ -8339,6 +8366,7 @@ function boot() {
   clock = new THREE.Clock();
 
   makeSky(scene);
+  makeEnvironment(renderer, scene);
   initAudio();
   initSpeech();
   validateWords();
