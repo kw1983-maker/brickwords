@@ -1,0 +1,9 @@
+{
+  "buildCommand": "python build.py",
+  "outputDirectory": ".",
+  "installCommand": "",
+  "framework": null,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>BrickWords — Learn English</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.92em' font-size='92'>&#129513;</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
+  <style>
+/*__CSS__*/
+  </style>
+</head>
+<body>
+
+<div id="game"></div>
+
+<!-- ===================== Roblox loading screen ===================== -->
+<div id="loading" class="overlay loading-screen">
+  <div class="brand-lockup brand-lockup--hero">
+    <div class="brand-brick" aria-hidden="true"></div>
+    <div class="load-logo">BRICK<span>WORDS</span></div>
+  </div>
+  <div class="load-sub">Learn English while you jump and run</div>
+  <div class="load-bar"><div id="load-fill"></div></div>
+  <div id="load-status" class="load-status">Loading&hellip;</div>
+</div>
+
+<!-- ===================== Title / game page ===================== -->
+<div id="title" class="overlay hidden">
+  <div class="page">
+    <header class="page-head">
+      <div class="brand-lockup">
+        <div class="brand-brick" aria-hidden="true"></div>
+        <div class="logo">BRICK<span>WORDS</span> <em id="mode-badge" class="mode-badge hidden"></em></div>
+      </div>
+      <p class="tagline">Two games, one set of words. Jump for them, or go and find them.</p>
+    </header>
+
+    <section class="pick-block">
+      <h2 class="pick-label">1 &middot; Which game?</h2>
+      <div id="mode-picker" class="card-row"></div>
+    </section>
+
+    <section class="pick-block">
+      <h2 class="pick-label">2 &middot; Which class are you in?</h2>
+      <div id="year-picker" class="card-row"></div>
+    </section>
+
+    <section class="pick-block">
+      <h2 class="pick-label" id="pick-words">3 &middot; Choose this week&rsquo;s words</h2>
+      <div id="pack-picker" class="card-row wrap"></div>
+    </section>
+
+    <div class="play-row">
+      <button id="btn-play" class="btn-play">Play</button>
+      <button id="btn-continue" class="btn-ghost hidden">Continue</button>
+    </div>
+
+    <label class="opt"><input type="checkbox" id="opt-speech" checked /> Read English aloud</label>
+    <label class="opt"><input type="checkbox" id="opt-music" checked /> Music</label>
+
+    <details class="controls-help">
+      <summary>How to play</summary>
+      <div class="ctrl-grid">
+        <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span>Walk</span>
+        <span><kbd>Space</kbd></span><span>Jump</span>
+        <span><kbd>Mouse</kbd></span><span>Look around (click the game first)</span>
+        <span><kbd>Scroll</kbd></span><span>Zoom in and out</span>
+        <span><kbd>R</kbd></span><span>Obby: back to your checkpoint &middot; Island: back to the plaza</span>
+        <span><kbd>H</kbd></span><span>Hear the question again</span>
+        <span><kbd>Esc</kbd></span><span>Menu</span>
+      </div>
+    </details>
+    <p id="title-hint" class="hint-text">Tip: the first run needs internet to fetch the 3D engine.</p>
+    <p class="build-stamp">build <!--__BUILD__--></p>
+  </div>
+</div>
+
+<!-- ===================== Avatar editor ===================== -->
+<div id="avatar-screen" class="overlay hidden">
+  <div class="panel avatar-panel">
+    <h2 class="panel-title">Make your Robloxian</h2>
+    <div class="avatar-cols">
+      <div id="avatar-preview" class="avatar-preview"></div>
+      <div class="avatar-controls">
+        <label class="field"><span>Name</span>
+          <input id="player-name" type="text" maxlength="16" value="Player" autocomplete="off" />
+        </label>
+        <div class="field"><span>Skin</span><div id="sw-skin" class="swatches"></div></div>
+        <div class="field"><span>Hair</span><div id="sw-hair" class="swatches"></div></div>
+        <div class="field"><span>Shirt</span><div id="sw-shirt" class="swatches"></div></div>
+        <div class="field"><span>Legs</span><div id="sw-pants" class="swatches"></div></div>
+        <div class="field"><span>Hat</span><div id="hat-row" class="hat-row"></div></div>
+      </div>
+    </div>
+    <div class="play-row">
+      <button id="btn-spawn" class="btn-play">Join the Obby</button>
+      <button id="btn-back" class="btn-ghost">Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== In-game HUD ===================== -->
+<!--
+  Laid out to the reference sheet: minimap top-left, quest banner top-centre,
+  currency bar top-right, a vertical rail of panels down the right, the round
+  action buttons along the bottom, and the player card bottom-left. Everything
+  here is pointer-events:none except the buttons, so the world stays clickable
+  for pointer lock.
+-->
+<div id="hud" class="hidden">
+
+  <!-- ---- top left: the minimap ---- -->
+  <div id="minimap" class="minimap hidden">
+    <canvas id="mm-canvas" width="260" height="260"></canvas>
+    <div class="mm-label" id="mm-label">MINIMAP</div>
+  </div>
+
+  <!-- ---- top centre: what you are being asked ---- -->
+  <div id="quest-banner" class="quest-banner hidden">
+    <div class="qb-icon" id="qb-icon"></div>
+    <div class="qb-body">
+      <div class="qb-eyebrow" id="qb-eyebrow"></div>
+      <div class="qb-title" id="q-text" role="heading" aria-level="2"></div>
+      <div class="qb-sub" id="q-sub"></div>
+      <div class="qb-bar"><div id="qb-fill"></div></div>
+    </div>
+    <div class="qb-count" id="qb-count">0 / 0</div>
+  </div>
+
+  <!-- ---- top right: the three counters and the gear ---- -->
+  <div id="currency" class="currency">
+    <div class="cur" title="Words found this run"><span class="icon-star" aria-hidden="true"></span><b id="cur-star">0</b></div>
+    <div class="cur" title="Coins"><span class="icon-coin" aria-hidden="true"></span><b id="cur-coin">0</b></div>
+    <div class="cur" title="Badges earned"><span class="icon-gem" aria-hidden="true"></span><b id="cur-gem">0</b></div>
+    <button id="btn-menu" class="cur-btn" title="Menu (Esc)">&#9881;</button>
+  </div>
+
+  <!-- ---- right rail: the panels ---- -->
+  <div id="rail" class="rail">
+    <button id="btn-quests" class="rail-btn" title="What am I looking for?">
+      <span class="rail-icon rail-icon--quests"></span><em>QUESTS</em>
+    </button>
+    <button id="btn-bag" class="rail-btn" title="Words you have found">
+      <span class="rail-icon rail-icon--bag"></span><em>WORDS</em>
+    </button>
+    <button id="btn-shop" class="rail-btn" title="Avatar shop">
+      <span class="rail-icon rail-icon--shop"></span><em>SHOP</em>
+    </button>
+  </div>
+
+  <!-- ---- bottom centre: the round actions ---- -->
+  <div id="actions" class="actions">
+    <div class="act-wrap">
+      <button id="btn-repeat" class="act" title="Say it again (H)"><span class="icon-listen" aria-hidden="true"></span></button>
+      <em>LISTEN</em>
+    </div>
+    <div class="act-wrap">
+      <button id="btn-hint" class="act act-hint" title="Where do I look?"><span class="icon-hint" aria-hidden="true"></span></button>
+      <em>HINT</em>
+    </div>
+    <div class="act-wrap">
+      <button id="btn-map" class="act" title="Show or hide the map (M)"><span class="icon-map" aria-hidden="true"></span></button>
+      <em>MAP</em>
+    </div>
+  </div>
+
+  <!-- ---- bottom left: who you are ---- -->
+  <div id="player-card" class="player-card">
+    <canvas id="pc-face" class="pc-face" width="120" height="120"></canvas>
+    <div class="pc-body">
+      <div class="pc-name" id="pc-name">Player</div>
+      <div class="pc-row">
+        <span class="pc-lv" id="pc-lv">1</span>
+        <div class="pc-bar"><div id="pc-fill"></div></div>
+      </div>
+      <div class="pc-xp" id="pc-xp">0 / 300</div>
+    </div>
+  </div>
+
+  <div id="compass" class="compass hidden">
+    <div id="compass-arrow" class="compass-arrow">&#9650;</div>
+    <div id="compass-label" class="compass-label"></div>
+  </div>
+
+  <div id="chat-log"></div>
+
+  <div id="health-wrap"><div id="health-fill"></div></div>
+
+  <button id="jump-btn" class="jump-btn">JUMP</button>
+
+  <div id="respawn" class="respawn hidden">
+    <div class="oof">Oof!</div>
+    <div id="respawn-msg" class="respawn-msg"></div>
+    <div id="respawn-count" class="respawn-count">2</div>
+  </div>
+
+  <!-- The centre-screen burst when a word is found. -->
+  <div id="burst" class="burst hidden">
+    <div class="burst-main">
+      <div class="burst-emoji" id="burst-emoji">&#11088;</div>
+      <div class="burst-word" id="burst-word">FOUND!</div>
+      <div class="burst-count" id="burst-count">1 / 10</div>
+    </div>
+    <div class="burst-side">
+      <div class="burst-rewards-label">REWARDS</div>
+      <div class="burst-rewards" id="burst-rewards"></div>
+    </div>
+  </div>
+
+  <div id="toasts"></div>
+</div>
+
+<!-- ===================== Quest checklist ===================== -->
+<div id="quests" class="side-panel hidden">
+  <div class="sp-head">
+    <div class="sp-head-icon qb-icon" id="quests-icon"></div>
+    <div class="sp-head-body">
+      <div class="sp-head-eyebrow" id="quests-eyebrow"></div>
+      <div class="sp-head-title" id="quests-title">Today&rsquo;s hunt</div>
+    </div>
+    <div class="sp-head-count" id="quests-count"></div>
+    <button id="btn-quests-close" class="sp-x">&times;</button>
+  </div>
+  <div class="sp-divider"></div>
+  <div class="sp-section" id="quests-section">To find</div>
+  <div class="sp-note" id="quests-note"></div>
+  <div id="quest-list" class="quest-list"></div>
+  <div class="sp-hint" id="quests-hint"></div>
+</div>
+
+<!-- ===================== Words collected ===================== -->
+<div id="bag" class="side-panel hidden">
+  <div class="sp-head">
+    <div class="sp-head-icon sp-head-icon--bag">&#127890;</div>
+    <div class="sp-head-body">
+      <div class="sp-head-eyebrow">Your collection</div>
+      <div class="sp-head-title" id="bag-title">Words you found</div>
+    </div>
+    <button id="btn-bag-close" class="sp-x">&times;</button>
+  </div>
+  <div class="sp-divider"></div>
+  <div class="sp-note" id="bag-note"></div>
+  <div id="bag-grid" class="bag-grid"></div>
+</div>
+
+<!-- ===================== Menu ===================== -->
+<div id="menu" class="overlay hidden">
+  <div class="panel menu-panel">
+    <h2 class="panel-title">Menu</h2>
+    <div class="menu-stack">
+      <button id="btn-resume" class="btn-play">Back to Game</button>
+      <button id="btn-reset" class="btn-ghost">Reset to checkpoint (R)</button>
+      <label class="opt"><input type="checkbox" id="opt-speech2" checked /> Read English aloud</label>
+      <label class="opt"><input type="checkbox" id="opt-music2" checked /> Music</label>
+      <label class="opt">Sensitivity <input id="opt-sens" type="range" min="1" max="10" value="4" /></label>
+      <button id="btn-quit" class="btn-ghost danger">Leave the game</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== Avatar shop ===================== -->
+<div id="shop" class="overlay hidden">
+  <div class="panel shop-panel">
+    <div class="shop-head">
+      <h2 class="panel-title">Shop</h2>
+      <div class="coin-pill"><span class="icon-coin" aria-hidden="true"></span> <b id="shop-coins">0</b></div>
+    </div>
+    <div class="shop-sub">Popular items</div>
+    <div id="shop-items" class="shop-grid"></div>
+    <button id="btn-shop-close" class="btn-ghost">Close</button>
+  </div>
+</div>
+
+<!-- ===================== Finish ===================== -->
+<div id="finish" class="overlay hidden">
+  <div class="panel finish-panel">
+    <div class="trophy">&#127942;</div>
+    <h2 class="panel-title" id="finish-title">Course complete!</h2>
+    <p id="finish-line" class="finish-line"></p>
+    <div id="finish-stats" class="finish-stats"></div>
+    <h3 class="wall-title">Words you learned</h3>
+    <div id="word-wall" class="word-wall"></div>
+    <div class="play-row">
+      <button id="btn-again" class="btn-play">Play again</button>
+      <button id="btn-lobby" class="btn-ghost">Choose new words</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+/*__JS__*/
+</script>
+
+<script>
+  // Friendly message if the CDN copy of Three.js could not be fetched.
+  setTimeout(function () {
+    if (!window.RBX) {
+      var s = document.getElementById('load-status');
+      if (s) {
+        s.innerHTML = '&#9888; Could not load the 3D engine (Three.js).<br>' +
+          'Connect to the internet for the first run, then reload this page.';
+        s.style.color = '#f5b81d';
+      }
+    }
+  }, 8000);
+</script>
+</body>
+</html>
