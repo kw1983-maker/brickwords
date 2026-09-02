@@ -134,6 +134,30 @@ export function loadItemImage(word, meshes) {
   img.src = url;
 }
 
+// A word's LEGO picture as a prop in the scene — vertical slab on the plinth,
+// not a decal pasted on a sign board.
+export function floatingItemProp(word, emoji, size = 3.4) {
+  const prop = new THREE.Group();
+  const thick = 0.45;
+
+  const back = part(size * 0.82, size * 0.82, thick, bc('Dark stone grey'),
+    { studs: false, castShadow: false });
+  back.position.z = -thick * 0.55;
+  prop.add(back);
+
+  const lip = part(size * 0.9, 0.28, size * 0.9, bc('Institutional white'),
+    { studs: false, castShadow: false, repeat: [2, 2] });
+  lip.position.y = -size * 0.42;
+  prop.add(lip);
+
+  const tex = itemFallbackFace(emoji);
+  const face = decalPlane(tex, size, size, { depthWrite: false });
+  face.position.z = thick * 0.15;
+  prop.add(face);
+  loadItemImage(word, [face]);
+  return prop;
+}
+
 // The face of an answer brick: a big picture with the word under it. Year 1 gets
 // the picture alone unless the word is wanted too, which is what `showWord` is.
 export function answerFace(emoji, word, opts = {}) {
@@ -1527,66 +1551,35 @@ export function bushProp(world, x, y, z, group, opts = {}) {
 }
 
 // ----------------------------------------------------------- the word stand
-// The island's answer brick. A podium, two posts and a two-sided sign carrying
-// one word's picture and its spelling.
-//
-// Two sided on purpose: in a corridor you always approach a question head-on, but
-// in an open world a child runs at a sign from whatever direction they happen to
-// be facing, and a sign that is blank from behind is a sign they run past. The
-// back face is turned through π so it reads the right way round rather than
-// mirrored.
+// A coloured plinth, the word's item floating above it in 3D, and a low
+// nameplate out front. The item billboards to the camera; the nameplate faces
+// across the street like a street sign.
 export function wordStand(world, x, y, z, word, colour, group, data = {}) {
   const holder = new THREE.Group();
   holder.position.set(x, y, z);
   holder.rotation.y = data.facing || 0;
   (group || world.root).add(holder);
 
-  // Square base, so the collision box is right whatever the sign is facing.
-  const pad = part(4.4, 1, 4.4, colour, { repeat: [4, 4] });
-  pad.position.set(0, -0.5, 0);
+  const plinth = part(4.4, 1.2, 4.4, colour, { repeat: [4, 4] });
+  plinth.position.set(0, 0.1, 0);
+  holder.add(plinth);
+  world.registerSolid(plinth, { kind: 'stand' });
+
+  const pad = part(3.6, 0.35, 3.6, bc('Institutional white'), { repeat: [3, 3] });
+  pad.position.set(0, 0.92, 0);
   holder.add(pad);
-  // Registered after parenting: registerSolid reads the WORLD position, so the
-  // box lands where the stand actually is rather than at the group's origin.
-  world.registerSolid(pad, { kind: 'stand' });
 
-  // Two posts rather than one. A Roblox sign is built out of parts you can
-  // count, and a single centre pole reads as a lollipop.
-  [-1.6, 1.6].forEach((dx) => {
-    const post = part(0.6, 4.4, 0.6, bc('Dark stone grey'), { studs: false, castShadow: false });
-    post.position.set(dx, 2.2, 0);
-    holder.add(post);
-  });
+  const itemProp = floatingItemProp(word.word, word.emoji, 3.5);
+  itemProp.position.set(0, 2.85, 0.15);
+  holder.add(itemProp);
 
-  // The board is a coloured brick with a white plate inset in it, not a sheet
-  // of paper floating in the air: the district's colour shows as a frame all
-  // the way round, and the brick has real thickness you can see from the side.
-  const board = new THREE.Group();
-  board.position.set(0, 6.7, 0);
-  holder.add(board);
+  const tag = part(3.8, 0.85, 0.35, bc('Institutional white'), { studs: false, castShadow: false });
+  tag.position.set(0, 0.62, 2.05);
+  holder.add(tag);
+  const nameDecal = decalPlane(nameplateFace(word.word), 3.5, 0.72);
+  nameDecal.position.set(0, 0.62, 2.24);
+  holder.add(nameDecal);
 
-  const frame = part(5.8, 5.8, 0.8, colour, { repeat: [5, 1] });
-  board.add(frame);
-
-  const itemTex = itemFallbackFace(word.emoji);
-  const nameTex = nameplateFace(word.word);
-  const itemDecals = [];
-  [1, -1].forEach((side) => {
-    const plate = part(4.7, 4.7, 0.2, bc('Institutional white'), { studs: false, castShadow: false });
-    plate.position.set(0, 0, side * 0.45);
-    board.add(plate);
-    const item = decalPlane(itemTex, 4.5, 3.2, { depthWrite: false });
-    item.position.set(0, 0.72, side * 0.57);
-    if (side < 0) item.rotation.y = Math.PI;
-    board.add(item);
-    itemDecals.push(item);
-    const name = decalPlane(nameTex, 4.5, 1.15);
-    name.position.set(0, -1.72, side * 0.57);
-    if (side < 0) name.rotation.y = Math.PI;
-    board.add(name);
-  });
-  loadItemImage(word.word, itemDecals);
-
-  // The ring on the ground, which is how a found word is marked off.
   const ringMat = new THREE.MeshStandardMaterial({
     color: 0xf5cd30, emissive: 0xf5cd30, emissiveIntensity: 0.35,
     transparent: true, opacity: 0.75,
@@ -1596,16 +1589,12 @@ export function wordStand(world, x, y, z, word, colour, group, data = {}) {
   ring.position.set(0, 0.14, 0);
   holder.add(ring);
 
-  // 5.4 wide against a 7-stud spacing, so two neighbouring signs cannot both be
-  // touched from one spot and answer over each other.
-  const trig = world.addTrigger('stand', x, y + 3, z, 5.4, 9, 5.4, data);
+  const trig = world.addTrigger('stand', x, y + 2.2, z, 5.4, 6.5, 5.4, data);
   trig.group = group;
 
   const rec = {
-    holder, pad, board, ring, ringMat, trigger: trig, word, x, y, z,
-    found: false, pulse: 0,
-    // Touched for the first time: the ring goes green and stays green, so the
-    // island slowly fills up with the words this pupil has met.
+    holder, plinth, itemProp, ring, ringMat, trigger: trig, word, x, y, z,
+    found: false, pulse: 0, bob: Math.random() * Math.PI * 2,
     markFound() {
       if (this.found) return false;
       this.found = true;
@@ -1615,15 +1604,15 @@ export function wordStand(world, x, y, z, word, colour, group, data = {}) {
       ringMat.opacity = 0.95;
       return true;
     },
-    // The flash when this stand was the one being hunted for.
     cheer() { this.pulse = 1.2; },
     update: (dt, t) => {
       ring.position.y = 0.14 + Math.sin(t * 2 + x * 0.1) * 0.05;
+      itemProp.position.y = 2.85 + Math.sin(t * 1.6 + rec.bob) * 0.12;
       if (rec.pulse > 0) {
         rec.pulse = Math.max(0, rec.pulse - dt);
         const sc = 1 + Math.sin(rec.pulse * 9) * 0.14;
-        board.scale.set(sc, sc, 1);
-        if (rec.pulse === 0) board.scale.set(1, 1, 1);
+        itemProp.scale.set(sc, sc, sc);
+        if (rec.pulse === 0) itemProp.scale.set(1, 1, 1);
       }
     },
   };
