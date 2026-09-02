@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parent
 # Order matters: definitions first, main.js last (it boots the game on load).
 JS_ORDER = [
     "js/rbx.js",
+    "js/items.js",
     "js/parts.js",
     "js/avatar.js",
     "js/camera.js",

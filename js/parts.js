@@ -13,6 +13,7 @@
 
 import * as THREE from 'three';
 import { part, bc, studTexture } from './rbx.js';
+import { buildWordItem } from './items.js';
 
 // ---------------------------------------------------------------- canvases
 // Drawing to a canvas is how a part gets a face: an emoji, a word, a question.
@@ -134,28 +135,9 @@ export function loadItemImage(word, meshes) {
   img.src = url;
 }
 
-// A word's LEGO picture as a prop in the scene — vertical slab on the plinth,
-// not a decal pasted on a sign board.
-export function floatingItemProp(word, emoji, size = 3.4) {
-  const prop = new THREE.Group();
-  const thick = 0.45;
-
-  const back = part(size * 0.82, size * 0.82, thick, bc('Dark stone grey'),
-    { studs: false, castShadow: false });
-  back.position.z = -thick * 0.55;
-  prop.add(back);
-
-  const lip = part(size * 0.9, 0.28, size * 0.9, bc('Institutional white'),
-    { studs: false, castShadow: false, repeat: [2, 2] });
-  lip.position.y = -size * 0.42;
-  prop.add(lip);
-
-  const tex = itemFallbackFace(emoji);
-  const face = decalPlane(tex, size, size, { depthWrite: false });
-  face.position.z = thick * 0.15;
-  prop.add(face);
-  loadItemImage(word, [face]);
-  return prop;
+// A brick-built 3D object for this word — same parts language as the minifig.
+export function floatingItemProp(word, _emoji, _size = 3.4) {
+  return buildWordItem(word);
 }
 
 // Floating item + nameplate above an obby answer brick (faces the launch platform).
@@ -170,7 +152,7 @@ export function obbyAnswerProp(x, y, z, word, emoji, group) {
   holder.add(pad);
 
   const itemProp = floatingItemProp(word, emoji, 3.2);
-  itemProp.position.set(0, 3.0, 0.1);
+  itemProp.position.set(0, 0.95, 0);
   holder.add(itemProp);
 
   const tag = part(3.6, 0.7, 0.3, bc('Institutional white'), { studs: false, castShadow: false });
@@ -1588,9 +1570,7 @@ export function bushProp(world, x, y, z, group, opts = {}) {
 }
 
 // ----------------------------------------------------------- the word stand
-// A coloured plinth, the word's item floating above it in 3D, and a low
-// nameplate out front. The item billboards to the camera; the nameplate faces
-// across the street like a street sign.
+// A coloured plinth, a brick-built 3D item sitting on it, and a low nameplate.
 export function wordStand(world, x, y, z, word, colour, group, data = {}) {
   const holder = new THREE.Group();
   holder.position.set(x, y, z);
@@ -1607,7 +1587,7 @@ export function wordStand(world, x, y, z, word, colour, group, data = {}) {
   holder.add(pad);
 
   const itemProp = floatingItemProp(word.word, word.emoji, 3.5);
-  itemProp.position.set(0, 2.85, 0.15);
+  itemProp.position.set(0, 1.16, 0);
   holder.add(itemProp);
 
   const tag = part(3.8, 0.85, 0.35, bc('Institutional white'), { studs: false, castShadow: false });
@@ -1644,7 +1624,7 @@ export function wordStand(world, x, y, z, word, colour, group, data = {}) {
     cheer() { this.pulse = 1.2; },
     update: (dt, t) => {
       ring.position.y = 0.14 + Math.sin(t * 2 + x * 0.1) * 0.05;
-      itemProp.position.y = 2.85 + Math.sin(t * 1.6 + rec.bob) * 0.12;
+      itemProp.position.y = 1.16 + Math.sin(t * 1.6 + rec.bob) * 0.08;
       if (rec.pulse > 0) {
         rec.pulse = Math.max(0, rec.pulse - dt);
         const sc = 1 + Math.sin(rec.pulse * 9) * 0.14;
