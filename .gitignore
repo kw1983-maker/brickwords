@@ -5,9 +5,12 @@ __pycache__/
 Thumbs.db
 *.pdf
 *.png
+!game/assets/words/
+!game/assets/words/*.png
 New folder/
 BrickWords UI - Design System.dc.html
 reference.png
 p*.png
+!game/assets/words/plane.png
 .vercel
 .env*
