@@ -158,6 +158,43 @@ export function floatingItemProp(word, emoji, size = 3.4) {
   return prop;
 }
 
+// Floating item + nameplate above an obby answer brick (faces the launch platform).
+export function obbyAnswerProp(x, y, z, word, emoji, group) {
+  const holder = new THREE.Group();
+  holder.position.set(x, y, z);
+  holder.rotation.y = Math.PI;
+  group.add(holder);
+
+  const pad = part(4.4, 0.3, 4.4, bc('Institutional white'), { repeat: [4, 4] });
+  pad.position.y = 0.75;
+  holder.add(pad);
+
+  const itemProp = floatingItemProp(word, emoji, 3.2);
+  itemProp.position.set(0, 3.0, 0.1);
+  holder.add(itemProp);
+
+  const tag = part(3.6, 0.7, 0.3, bc('Institutional white'), { studs: false, castShadow: false });
+  tag.position.set(0, 0.82, 2.05);
+  holder.add(tag);
+  const nameDecal = decalPlane(nameplateFace(word), 3.3, 0.62);
+  nameDecal.position.set(0, 0.82, 2.18);
+  holder.add(nameDecal);
+
+  return { group: holder, itemProp };
+}
+
+export function fadeMeshes(root, fade) {
+  root.traverse((child) => {
+    const mats = child.material
+      ? (Array.isArray(child.material) ? child.material : [child.material])
+      : [];
+    for (const m of mats) {
+      m.transparent = true;
+      m.opacity = fade;
+    }
+  });
+}
+
 // The face of an answer brick: a big picture with the word under it. Year 1 gets
 // the picture alone unless the word is wanted too, which is what `showWord` is.
 export function answerFace(emoji, word, opts = {}) {

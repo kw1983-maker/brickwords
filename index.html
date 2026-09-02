@@ -1572,7 +1572,7 @@ body.touch .jump-btn { display: block; }
       </div>
     </details>
     <p id="title-hint" class="hint-text">Tip: the first run needs internet to fetch the 3D engine.</p>
-    <p class="build-stamp">build 2026-09-02 20:11</p>
+    <p class="build-stamp">build 2026-09-02 20:23</p>
   </div>
 </div>
 
@@ -2146,6 +2146,43 @@ function floatingItemProp(word, emoji, size = 3.4) {
   prop.add(face);
   loadItemImage(word, [face]);
   return prop;
+}
+
+// Floating item + nameplate above an obby answer brick (faces the launch platform).
+function obbyAnswerProp(x, y, z, word, emoji, group) {
+  const holder = new THREE.Group();
+  holder.position.set(x, y, z);
+  holder.rotation.y = Math.PI;
+  group.add(holder);
+
+  const pad = part(4.4, 0.3, 4.4, bc('Institutional white'), { repeat: [4, 4] });
+  pad.position.y = 0.75;
+  holder.add(pad);
+
+  const itemProp = floatingItemProp(word, emoji, 3.2);
+  itemProp.position.set(0, 3.0, 0.1);
+  holder.add(itemProp);
+
+  const tag = part(3.6, 0.7, 0.3, bc('Institutional white'), { studs: false, castShadow: false });
+  tag.position.set(0, 0.82, 2.05);
+  holder.add(tag);
+  const nameDecal = decalPlane(nameplateFace(word), 3.3, 0.62);
+  nameDecal.position.set(0, 0.82, 2.18);
+  holder.add(nameDecal);
+
+  return { group: holder, itemProp };
+}
+
+function fadeMeshes(root, fade) {
+  root.traverse((child) => {
+    const mats = child.material
+      ? (Array.isArray(child.material) ? child.material : [child.material])
+      : [];
+    for (const m of mats) {
+      m.transparent = true;
+      m.opacity = fade;
+    }
+  });
 }
 
 // The face of an answer brick: a big picture with the word under it. Year 1 gets
@@ -6424,18 +6461,9 @@ class Course {
       });
       const box = mesh.userData.box;
 
-      const itemTex = itemFallbackFace(choice.emoji);
-      const decal = topDecal(itemTex, BRICK_W - 0.6, BRICK_D - 0.6);
-      decal.position.set(x, answerY + 0.04, answerZ);
-      g.add(decal);
-      loadItemImage(choice.label, [decal]);
+      const display = obbyAnswerProp(x, answerY, answerZ, choice.label, choice.emoji, g);
 
-      // …and again on a floating billboard, so it is readable from the launch
-      // platform, where you are looking at it edge-on.
-      const bb = wordBillboard(this.world, x, answerY + 5.2, answerZ, choice.label, choice.emoji, 6, 3.1, g);
-      this.billboards.push(bb);
-
-      return { mesh, box, choice, decal, billboard: bb, x, z: answerZ, y: answerY, fallen: false };
+      return { mesh, box, choice, display, x, z: answerZ, y: answerY, fallen: false };
     });
 
     // ---- the question board, hanging over the gap, angled back at the player
@@ -6448,7 +6476,7 @@ class Course {
 
     this.stages.push({
       index: i, question, group: g, bricks, board, pad, isCheckpoint,
-      signage: [board, ...bricks.map((b) => b.billboard)],
+      signage: [board, ...bricks.map((b) => b.display.group)],
       z, y, answerZ, answerY, answered: false, colour,
     });
 
@@ -6614,16 +6642,16 @@ class Course {
         t += dt;
         const drop = 40 * t * t;
         brick.mesh.position.y = brick.y - 0.5 - drop;
-        brick.decal.position.y = brick.y + 0.04 - drop;
         brick.mesh.rotation.z += dt * 1.4;
         const fade = Math.max(0, 1 - t * 0.8);
         brick.mesh.material.forEach((m) => { m.opacity = fade; });
-        brick.decal.material.opacity = fade;
-        if (brick.billboard) brick.billboard.material.opacity = fade;
+        if (brick.display) {
+          brick.display.group.position.y = brick.y - drop;
+          fadeMeshes(brick.display.group, fade);
+        }
         if (t > 1.6) {
           brick.mesh.visible = false;
-          brick.decal.visible = false;
-          if (brick.billboard) brick.billboard.visible = false;
+          if (brick.display) brick.display.group.visible = false;
           const i = this.world.animated.indexOf(anim);
           if (i >= 0) this.world.animated.splice(i, 1);
         }
@@ -6641,14 +6669,14 @@ class Course {
       if (!brick.fallen) return;
       brick.fallen = false;
       brick.mesh.visible = true;
-      brick.decal.visible = true;
-      if (brick.billboard) brick.billboard.visible = true;
+      if (brick.display) {
+        brick.display.group.visible = true;
+        brick.display.group.position.set(brick.x, brick.y, brick.z);
+        fadeMeshes(brick.display.group, 1);
+      }
       brick.mesh.position.set(brick.x, brick.y - 0.5, brick.z);
       brick.mesh.rotation.set(0, 0, 0);
-      brick.decal.position.set(brick.x, brick.y + 0.04, brick.z);
       brick.mesh.material.forEach((m) => { m.opacity = 1; m.transparent = false; });
-      brick.decal.material.opacity = 1;
-      if (brick.billboard) brick.billboard.material.opacity = 1;
       brick.box = this.world.registerSolid(brick.mesh, {
         kind: 'answer',
         data: { stage: index, choice: k, correct: brick.choice.correct },

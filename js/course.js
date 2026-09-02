@@ -22,8 +22,8 @@ import * as THREE from 'three';
 import { part, bc, SAFE_GAP, shuffle, randInt } from './rbx.js';
 import {
   platform, lavaPool, checkpointPad, coin, billboard, startArch, podium,
-  baseplate, answerFace, boardFace, signBoard, decalPlane, topDecal, canvasTexture,
-  itemFallbackFace, loadItemImage, wordBillboard,
+  baseplate, answerFace, boardFace, signBoard, decalPlane, canvasTexture,
+  obbyAnswerProp, fadeMeshes,
   UI_FONT, DISPLAY_FONT, EMOJI_FONT, DS, fitText, drawWrapped,
 } from './parts.js';
 import { QuestionSet } from './questions.js';
@@ -165,18 +165,9 @@ export class Course {
       });
       const box = mesh.userData.box;
 
-      const itemTex = itemFallbackFace(choice.emoji);
-      const decal = topDecal(itemTex, BRICK_W - 0.6, BRICK_D - 0.6);
-      decal.position.set(x, answerY + 0.04, answerZ);
-      g.add(decal);
-      loadItemImage(choice.label, [decal]);
+      const display = obbyAnswerProp(x, answerY, answerZ, choice.label, choice.emoji, g);
 
-      // …and again on a floating billboard, so it is readable from the launch
-      // platform, where you are looking at it edge-on.
-      const bb = wordBillboard(this.world, x, answerY + 5.2, answerZ, choice.label, choice.emoji, 6, 3.1, g);
-      this.billboards.push(bb);
-
-      return { mesh, box, choice, decal, billboard: bb, x, z: answerZ, y: answerY, fallen: false };
+      return { mesh, box, choice, display, x, z: answerZ, y: answerY, fallen: false };
     });
 
     // ---- the question board, hanging over the gap, angled back at the player
@@ -189,7 +180,7 @@ export class Course {
 
     this.stages.push({
       index: i, question, group: g, bricks, board, pad, isCheckpoint,
-      signage: [board, ...bricks.map((b) => b.billboard)],
+      signage: [board, ...bricks.map((b) => b.display.group)],
       z, y, answerZ, answerY, answered: false, colour,
     });
 
@@ -355,16 +346,16 @@ export class Course {
         t += dt;
         const drop = 40 * t * t;
         brick.mesh.position.y = brick.y - 0.5 - drop;
-        brick.decal.position.y = brick.y + 0.04 - drop;
         brick.mesh.rotation.z += dt * 1.4;
         const fade = Math.max(0, 1 - t * 0.8);
         brick.mesh.material.forEach((m) => { m.opacity = fade; });
-        brick.decal.material.opacity = fade;
-        if (brick.billboard) brick.billboard.material.opacity = fade;
+        if (brick.display) {
+          brick.display.group.position.y = brick.y - drop;
+          fadeMeshes(brick.display.group, fade);
+        }
         if (t > 1.6) {
           brick.mesh.visible = false;
-          brick.decal.visible = false;
-          if (brick.billboard) brick.billboard.visible = false;
+          if (brick.display) brick.display.group.visible = false;
           const i = this.world.animated.indexOf(anim);
           if (i >= 0) this.world.animated.splice(i, 1);
         }
@@ -382,14 +373,14 @@ export class Course {
       if (!brick.fallen) return;
       brick.fallen = false;
       brick.mesh.visible = true;
-      brick.decal.visible = true;
-      if (brick.billboard) brick.billboard.visible = true;
+      if (brick.display) {
+        brick.display.group.visible = true;
+        brick.display.group.position.set(brick.x, brick.y, brick.z);
+        fadeMeshes(brick.display.group, 1);
+      }
       brick.mesh.position.set(brick.x, brick.y - 0.5, brick.z);
       brick.mesh.rotation.set(0, 0, 0);
-      brick.decal.position.set(brick.x, brick.y + 0.04, brick.z);
       brick.mesh.material.forEach((m) => { m.opacity = 1; m.transparent = false; });
-      brick.decal.material.opacity = 1;
-      if (brick.billboard) brick.billboard.material.opacity = 1;
       brick.box = this.world.registerSolid(brick.mesh, {
         kind: 'answer',
         data: { stage: index, choice: k, correct: brick.choice.correct },
