@@ -74,6 +74,66 @@ export function drawWrapped(g, text, cx, cy, maxW, px, lineH, font = UI_FONT, we
   return lines.length;
 }
 
+// Per-word LEGO item PNGs live here (slug matches js/words.js entries).
+export const WORD_IMG_DIR = 'game/assets/words/';
+
+export function wordSlug(w) {
+  return String(w).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+// Emoji-only canvas shown until a PNG loads (or if the file is missing).
+export function itemFallbackFace(emoji) {
+  return canvasTexture(256, 256, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    if (!emoji) return;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.font = `168px ${EMOJI_FONT}`;
+    g.fillText(emoji, w / 2, h / 2);
+  });
+}
+
+// The name strip under the floating item picture on a word stand.
+export function nameplateFace(word) {
+  return canvasTexture(512, 128, (g, w, h) => {
+    g.fillStyle = '#ffffff';
+    g.fillRect(0, 0, w, h);
+    g.strokeStyle = 'rgba(0,0,0,0.18)';
+    g.lineWidth = 6;
+    g.strokeRect(3, 3, w - 6, h - 6);
+    g.fillStyle = DS.purple;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    const px = fitText(g, word, w - 24, 52, DISPLAY_FONT);
+    g.font = `700 ${px}px ${DISPLAY_FONT}`;
+    drawWrapped(g, word, w / 2, h / 2, w - 24, px, px * 1.12, DISPLAY_FONT, '700');
+  });
+}
+
+// Try a transparent PNG for this word; leave the emoji fallback on error.
+export function loadItemImage(word, meshes) {
+  if (!meshes || !meshes.length) return;
+  const slug = wordSlug(word);
+  if (!slug) return;
+  const url = new URL(`${WORD_IMG_DIR}${slug}.png`, document.baseURI).href;
+  const img = new Image();
+  img.onload = () => {
+    const tex = new THREE.Texture(img);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 16;
+    tex.needsUpdate = true;
+    for (const mesh of meshes) {
+      mesh.material.map = tex;
+      mesh.material.transparent = true;
+      mesh.material.needsUpdate = true;
+    }
+  };
+  img.onerror = () => {
+    console.warn('[BrickWords] missing word image:', url);
+  };
+  img.src = url;
+}
+
 // The face of an answer brick: a big picture with the word under it. Year 1 gets
 // the picture alone unless the word is wanted too, which is what `showWord` is.
 export function answerFace(emoji, word, opts = {}) {
@@ -426,6 +486,26 @@ export function billboard(world, x, y, z, texture, w, h, group) {
   mesh.userData.billboard = true;
   (group || world.root).add(mesh);
   return mesh;
+}
+
+// Floating item picture + nameplate, for obby answer tags.
+export function wordBillboard(world, x, y, z, word, emoji, w, h, group) {
+  const holder = new THREE.Group();
+  holder.position.set(x, y, z);
+  holder.userData.billboard = true;
+  (group || world.root).add(holder);
+  const itemMeshes = [];
+  const item = decalPlane(itemFallbackFace(emoji), w, h * 0.62, {
+    side: THREE.DoubleSide, depthWrite: false,
+  });
+  item.position.y = h * 0.19;
+  holder.add(item);
+  itemMeshes.push(item);
+  const name = decalPlane(nameplateFace(word), w, h * 0.28, { side: THREE.DoubleSide });
+  name.position.y = -h * 0.36;
+  holder.add(name);
+  loadItemImage(word, itemMeshes);
+  return holder;
 }
 
 // The classic obby start arch.
@@ -1487,16 +1567,24 @@ export function wordStand(world, x, y, z, word, colour, group, data = {}) {
   const frame = part(5.8, 5.8, 0.8, colour, { repeat: [5, 1] });
   board.add(frame);
 
-  const face = answerFace(word.emoji, word.word, { showWord: true });
+  const itemTex = itemFallbackFace(word.emoji);
+  const nameTex = nameplateFace(word.word);
+  const itemDecals = [];
   [1, -1].forEach((side) => {
     const plate = part(4.7, 4.7, 0.2, bc('Institutional white'), { studs: false, castShadow: false });
     plate.position.set(0, 0, side * 0.45);
     board.add(plate);
-    const decal = decalPlane(face, 4.5, 4.5);
-    decal.position.set(0, 0, side * 0.57);
-    if (side < 0) decal.rotation.y = Math.PI;
-    board.add(decal);
+    const item = decalPlane(itemTex, 4.5, 3.2, { depthWrite: false });
+    item.position.set(0, 0.72, side * 0.57);
+    if (side < 0) item.rotation.y = Math.PI;
+    board.add(item);
+    itemDecals.push(item);
+    const name = decalPlane(nameTex, 4.5, 1.15);
+    name.position.set(0, -1.72, side * 0.57);
+    if (side < 0) name.rotation.y = Math.PI;
+    board.add(name);
   });
+  loadItemImage(word.word, itemDecals);
 
   // The ring on the ground, which is how a found word is marked off.
   const ringMat = new THREE.MeshStandardMaterial({

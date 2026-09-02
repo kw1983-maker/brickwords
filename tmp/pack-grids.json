@@ -1,4 +1,23 @@
 {
+  "friends": [3, 3, 2],
+  "numbers": [3, 3, 4],
+  "colours": [3, 3, 3, 1],
+  "school": [3, 3, 3],
   "toys": [3, 3, 4],
-  "helping": [3, 3, 3, 3]
+  "pets": [3, 3, 2],
+  "lunch": [3, 3, 4],
+  "week": [4, 4],
+  "house": [3, 3, 2],
+  "clothes": [3, 3, 4],
+  "body": [3, 3, 2],
+  "beach": [3, 3, 2],
+  "countries": [4, 4, 3],
+  "subjects": [3, 3, 4, 3],
+  "past": [4, 4, 3],
+  "celebrations": [3, 3, 3, 3],
+  "eating": [3, 4, 4, 3],
+  "transport": [3, 3, 3, 3],
+  "helping": [5, 4, 3],
+  "wildlife": [3, 3, 3, 3],
+  "sports": [3, 3, 3, 3]
 }

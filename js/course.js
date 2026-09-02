@@ -23,6 +23,7 @@ import { part, bc, SAFE_GAP, shuffle, randInt } from './rbx.js';
 import {
   platform, lavaPool, checkpointPad, coin, billboard, startArch, podium,
   baseplate, answerFace, boardFace, signBoard, decalPlane, topDecal, canvasTexture,
+  itemFallbackFace, loadItemImage, wordBillboard,
   UI_FONT, DISPLAY_FONT, EMOJI_FONT, DS, fitText, drawWrapped,
 } from './parts.js';
 import { QuestionSet } from './questions.js';
@@ -164,16 +165,15 @@ export class Course {
       });
       const box = mesh.userData.box;
 
-      // The label goes on the brick's top face…
-      const face = answerFace(choice.emoji, choice.label, { showWord: this.year.showWord });
-      const decal = topDecal(face, BRICK_W - 0.6, BRICK_D - 0.6);
+      const itemTex = itemFallbackFace(choice.emoji);
+      const decal = topDecal(itemTex, BRICK_W - 0.6, BRICK_D - 0.6);
       decal.position.set(x, answerY + 0.04, answerZ);
       g.add(decal);
+      loadItemImage(choice.label, [decal]);
 
       // …and again on a floating billboard, so it is readable from the launch
       // platform, where you are looking at it edge-on.
-      const tag = this.tagFace(choice.emoji, choice.label);
-      const bb = billboard(this.world, x, answerY + 5.2, answerZ, tag, 6, 3.1, g);
+      const bb = wordBillboard(this.world, x, answerY + 5.2, answerZ, choice.label, choice.emoji, 6, 3.1, g);
       this.billboards.push(bb);
 
       return { mesh, box, choice, decal, billboard: bb, x, z: answerZ, y: answerY, fallen: false };

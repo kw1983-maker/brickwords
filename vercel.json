@@ -4,6 +4,7 @@
   "installCommand": "",
   "framework": null,
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/game/assets/:path*", "destination": "/game/assets/:path*" },
+    { "source": "/((?!game/assets/).*)", "destination": "/index.html" }
   ]
 }
