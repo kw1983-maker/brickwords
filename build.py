@@ -25,6 +25,7 @@ JS_ORDER = [
     "js/audio.js",
     "js/speech.js",
     "js/words.js",
+    "js/worlds.js",
     "js/questions.js",
     "js/quests.js",
     "js/course.js",

@@ -35,6 +35,7 @@
 //   {
 //     id: 'toys', name: 'Toys', emoji: '🪁', blurb: 'kite, doll, train…',
 //     years: [1, 2],                        // which classes are offered it
+//     world: 'fair',                        // OPTIONAL: biome id from worlds.js (fallback: town)
 //     book: 'Super Minds 1 · Unit 2 (p.22)',// where it came from, shown to the teacher
 //     ask: 'Which one is {word}?',          // OPTIONAL: override the obby's question
 //     quiz: [ … ],                          // OPTIONAL: written questions (Year 4)
@@ -160,6 +161,7 @@ export const PACKS = [
     emoji: '👋',
     blurb: 'hello, name, how old are you',
     years: [1],
+    world: 'town',
     book: 'Super Minds 1 · Starter (p.4–5)',
     ask: 'Jump on {word}.',
     words: [
@@ -179,6 +181,7 @@ export const PACKS = [
     emoji: '🔢',
     blurb: 'one, two, three… ten',
     years: [1, 2],
+    world: 'town',
     book: 'Super Minds 1 · Starter (p.5)',
     ask: 'Jump on the number {word}.',
     words: [
@@ -200,6 +203,7 @@ export const PACKS = [
     emoji: '🎨',
     blurb: 'red, blue, yellow, green…',
     years: [1, 2],
+    world: 'town',
     book: 'Super Minds 1 · Starter & Unit 7',
     ask: 'Jump on the colour {word}.',
     words: [
@@ -221,6 +225,7 @@ export const PACKS = [
     emoji: '✏️',
     blurb: 'pen, pencil, book, bag, desk…',
     years: [1, 2],
+    world: 'campus',
     book: "Super Minds 1 · Unit 1 (p.10) — What's this? It's a pencil.",
     ask: "What's this? Jump on the {word}.",
     words: [
@@ -241,6 +246,7 @@ export const PACKS = [
     emoji: '🪁',
     blurb: 'kite, doll, train, ball, bike…',
     years: [1, 2],
+    world: 'fair',
     book: "Super Minds 1 · Unit 2 (p.22) — What's his favourite toy?",
     ask: 'Jump on the {word}.',
     words: [
@@ -262,6 +268,7 @@ export const PACKS = [
     emoji: '🐶',
     blurb: 'dog, cat, duck, frog, spider…',
     years: [1, 2],
+    world: 'jungle',
     book: 'Super Minds 1 · Unit 3 (p.34) — I like / I don’t like dogs.',
     ask: 'Jump on the {word}.',
     words: [
@@ -281,6 +288,7 @@ export const PACKS = [
     emoji: '🍕',
     blurb: 'pizza, cake, apple, banana…',
     years: [1, 2],
+    world: 'market',
     book: 'Super Minds 1 · Unit 4 (p.46) — I’ve got / I haven’t got a sandwich.',
     ask: 'Jump on the {word}.',
     words: [
@@ -304,6 +312,7 @@ export const PACKS = [
     emoji: '📅',
     blurb: 'Monday, Tuesday… Sunday',
     years: [2],
+    world: 'town',
     book: 'Super Minds 1 · Unit 5 (p.58) — I watch TV on Sundays.',
     ask: 'Which day is it? {sentence}',
     words: [
@@ -323,6 +332,7 @@ export const PACKS = [
     emoji: '🏚️',
     blurb: 'kitchen, bedroom, stairs, cellar…',
     years: [2],
+    world: 'town',
     book: "Super Minds 1 · Unit 6 (p.70) — There's a monster. How many cars are there?",
     ask: 'Listen! {sentence} Where is it?',
     words: [
@@ -342,6 +352,7 @@ export const PACKS = [
     emoji: '👕',
     blurb: 'T-shirt, jeans, socks, cap…',
     years: [2],
+    world: 'town',
     book: "Super Minds 1 · Unit 7 (p.82) — Olivia's wearing a red sweater.",
     ask: 'Listen! {sentence} Jump on it!',
     words: [
@@ -363,6 +374,7 @@ export const PACKS = [
     emoji: '🤖',
     blurb: 'head, arm, hand, knee, foot…',
     years: [2],
+    world: 'clinic',
     book: "Super Minds 1 · Unit 8 (p.94) — I can/can't stand on one leg.",
     ask: "Let's make a robot! {sentence}",
     words: [
@@ -382,6 +394,7 @@ export const PACKS = [
     emoji: '🏖️',
     blurb: 'swim, shells, ice cream, photos…',
     years: [2],
+    world: 'beach',
     book: "Super Minds 1 · Unit 9 (p.106) — Let's play the guitar. Where's the blue book?",
     ask: "Let's do it! {sentence}",
     words: [
@@ -403,6 +416,7 @@ export const PACKS = [
     emoji: '🌏',
     blurb: 'countries, nationalities, routines',
     years: [4],
+    world: 'travel',
     book: 'Get Smart Plus 4 · Module 1 (p.5, PD p.168)',
     words: [
       { word: 'Malaysia', emoji: '🇲🇾', sentence: "I'm from Malaysia. I'm Malaysian." },
@@ -433,6 +447,7 @@ export const PACKS = [
     emoji: '📚',
     blurb: 'school subjects and housework',
     years: [4],
+    world: 'campus',
     book: 'Get Smart Plus 4 · Module 2 (p.15, PD p.169, p.171)',
     words: [
       { word: 'Art', emoji: '🎨', sentence: 'My favourite subject is Art.' },
@@ -465,6 +480,7 @@ export const PACKS = [
     emoji: '🏺',
     blurb: 'Egypt, the past simple, insects',
     years: [4],
+    world: 'ruins',
     book: 'Get Smart Plus 4 · Module 3 (p.27, PD p.171, p.173, p.174)',
     words: [
       { word: 'mummy', emoji: '🧟', sentence: 'The Egyptians made a mummy.' },
@@ -496,6 +512,7 @@ export const PACKS = [
     emoji: '🎆',
     blurb: 'dates, ordinals, going to',
     years: [4],
+    world: 'fair',
     book: 'Get Smart Plus 4 · Module 4 (p.37, PD p.170, p.173)',
     words: [
       { word: 'parade', emoji: '🎏', sentence: "She's going to go to the parade." },
@@ -527,6 +544,7 @@ export const PACKS = [
     emoji: '🥗',
     blurb: 'food, containers, some and any',
     years: [4],
+    world: 'market',
     book: 'Get Smart Plus 4 · Module 5 (p.49, PD p.173, p.175)',
     words: [
       { word: 'pear', emoji: '🍐', sentence: 'I want a pear.' },
@@ -560,6 +578,7 @@ export const PACKS = [
     emoji: '🚌',
     blurb: 'transport, time, street safety',
     years: [4],
+    world: 'travel',
     book: 'Get Smart Plus 4 · Module 6 (p.59, PD p.174)',
     words: [
       { word: 'motorbike', emoji: '🏍️', sentence: 'He goes to work by motorbike.' },
@@ -591,6 +610,7 @@ export const PACKS = [
     emoji: '♻️',
     blurb: 'recycling, materials, whose is it?',
     years: [4],
+    world: 'town',
     book: 'Get Smart Plus 4 · Module 7 (p.71, PD p.173, p.175)',
     words: [
       { word: 'recycling', emoji: '♻️', sentence: 'Everyone can recycle.' },
@@ -622,6 +642,7 @@ export const PACKS = [
     emoji: '🦖',
     blurb: 'comparing animals, adjectives',
     years: [4],
+    world: 'jungle',
     book: 'Get Smart Plus 4 · Module 8 (p.81, PD p.170, p.171)',
     words: [
       { word: 'camel', emoji: '🐫', sentence: 'A camel has got a hump.' },
@@ -653,6 +674,7 @@ export const PACKS = [
     emoji: '🏸',
     blurb: 'sports, equipment, the best',
     years: [4],
+    world: 'stadium',
     book: 'Get Smart Plus 4 · Module 9 (p.93, PD p.168)',
     words: [
       { word: 'badminton', emoji: '🏸', sentence: 'Badminton is popular in Malaysia.' },
@@ -684,6 +706,7 @@ export const PACKS = [
     emoji: '🤒',
     blurb: 'illnesses, advice, should',
     years: [4],
+    world: 'clinic',
     book: 'Get Smart Plus 4 · Module 10 (p.103, PD p.169)',
     words: [
       { word: 'headache', emoji: '🤕', sentence: "I've got a headache." },
@@ -724,6 +747,11 @@ export function defaultPackForYear(yearId) {
 
 export const packById = (id) => PACKS.find((p) => p.id === id) || null;
 
+const KNOWN_WORLDS = [
+  'town', 'campus', 'fair', 'beach', 'jungle',
+  'stadium', 'market', 'clinic', 'ruins', 'travel',
+];
+
 export function pickLine(lines, key) {
   const arr = lines && lines[key];
   if (!arr || !arr.length) return '';
@@ -758,6 +786,9 @@ export function validateWords() {
 
     if (!p.years || !p.years.length) problems.push(`${p.id}: no years`);
     if (!p.book) problems.push(`${p.id}: no book reference`);
+    if (p.world && !KNOWN_WORLDS.includes(p.world)) {
+      problems.push(`${p.id}: unknown world '${p.world}'`);
+    }
 
     const need = Math.max(...YEARS.filter((y) => p.years.includes(y.id)).map((y) => y.choices), 3);
     if (!p.words || p.words.length < need) {

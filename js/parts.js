@@ -552,9 +552,9 @@ export function wordBillboard(world, x, y, z, word, emoji, w, h, group) {
 }
 
 // The classic obby start arch.
-export function startArch(world, x, y, z, group) {
+export function startArch(world, x, y, z, group, opts = {}) {
   const g = group || world.root;
-  const colour = bc('Bright yellow');
+  const colour = opts.colour !== undefined ? opts.colour : bc('Bright yellow');
   [-7, 7].forEach((dx) => {
     const leg = part(2, 14, 2, colour);
     world.place(leg, x + dx, y + 7, z, { parent: g });
@@ -627,14 +627,16 @@ export function plateau(world, size, thickness, colour, group, opts = {}) {
 // island into the shallows and simply walk back up again — no swim state, no
 // drowning, no rescue teleport, and not one line of new controller code. The
 // 'water' trigger only slows them down while they are in it.
-export function seaPlane(world, top, size, group) {
+export function seaPlane(world, top, size, group, opts = {}) {
   const g = group || world.root;
 
-  const floor = part(size, 60, size, bc('Sand blue'), { studs: false, castShadow: false });
+  const floorColour = opts.floor !== undefined ? opts.floor : bc('Sand blue');
+  const waterColour = opts.water !== undefined ? opts.water : 0x2ea6dd;
+  const floor = part(size, 60, size, floorColour, { studs: false, castShadow: false });
   world.place(floor, 0, top - 30, 0, { parent: g, kind: 'ground' });
 
   const mat = new THREE.MeshStandardMaterial({
-    color: 0x2ea6dd, transparent: true, opacity: 0.7, roughness: 0.12, metalness: 0.2,
+    color: waterColour, transparent: true, opacity: 0.7, roughness: 0.12, metalness: 0.2,
   });
   const surf = new THREE.Mesh(new THREE.BoxGeometry(size, 0.5, size), mat);
   surf.position.set(0, top + 0.2, 0);
@@ -878,7 +880,7 @@ export function treeProp(world, x, y, z, group, opts = {}) {
   // solids, so a scenery-only trunk let the camera sit inside the wood and fill
   // the screen with brown.
   const trunk = part(1.4, h, 1.4, bc('Reddish brown'), { studs: false, castShadow: false });
-  world.place(trunk, x, y + h / 2, z, { parent: g, kind: 'brick' });
+  world.place(trunk, x, y + h / 2, z, { parent: g, kind: 'brick', solid: opts.solid !== false });
   groundShadow(world, x, z, (opts.palm ? 4.2 : 4.6), g, { opacity: 0.5 });
 
   const leaf = opts.leaf || bc('Bright green');
@@ -1023,6 +1025,10 @@ export function paintTop(mesh, tex, sx, sz, studsPerTile = 4) {
 // shadow — they exist to fill the skyline and cost almost nothing.
 export function distantIsles(world, group, opts = {}) {
   const g = group || world.root;
+  const sand = opts.sand !== undefined ? opts.sand : bc('Cool yellow');
+  const mid = opts.mid !== undefined ? opts.mid : bc('Bright green');
+  const grass = opts.grass !== undefined ? opts.grass : bc('Br. yellowish green');
+  const peak = opts.top !== undefined ? opts.top : bc('Institutional white');
 
   // Two rings of hills. The near ring is the low green landfall; the far ring
   // sits much further out and stands much taller, so the horizon has real depth
@@ -1040,10 +1046,10 @@ export function distantIsles(world, group, opts = {}) {
       for (let k = 0; k < layers; k++) {
         const f = 1 - k / (layers + 0.7);
         const top = k === layers - 1;
-        const colour = k === 0 ? bc('Cool yellow')
-          : (top && layers >= 6) ? bc('Institutional white')
-            : top ? bc('Br. yellowish green')
-              : bc('Bright green');
+        const colour = k === 0 ? sand
+          : (top && layers >= 6) ? peak
+            : top ? grass
+              : mid;
         const slab = part(w * f, step + 3, w * f * 0.8, colour, { studs: false, castShadow: false });
         slab.receiveShadow = false;
         slab.position.set(x, -3 + k * step, z);
@@ -1569,6 +1575,133 @@ export function bushProp(world, x, y, z, group, opts = {}) {
   return g;
 }
 
+// ----------------------------------------------------------- biome landmarks
+// Scenery only. Nothing here is solid — a landmark that shoves a pupil is a
+// landmark that breaks the island's one rule.
+
+export function flagPole(world, x, z, group, opts = {}) {
+  const g = group || world.root;
+  const y = opts.y || 0;
+  const h = opts.height || 16;
+  const pole = part(0.7, h, 0.7, bc('Institutional white'), { studs: false, castShadow: false });
+  pole.position.set(x, y + h / 2, z);
+  g.add(pole);
+  const flag = part(6.5, 3.6, 0.25, opts.colour !== undefined ? opts.colour : bc('Bright red'),
+    { studs: false });
+  flag.position.set(x + 3.5, y + h - 2.2, z);
+  g.add(flag);
+  return g;
+}
+
+export function goalPosts(world, x, z, group, opts = {}) {
+  const g = group || world.root;
+  const yaw = opts.yaw || 0;
+  const holder = new THREE.Group();
+  holder.position.set(x, 0, z);
+  holder.rotation.y = yaw;
+  g.add(holder);
+  const white = bc('Institutional white');
+  [-6, 6].forEach((dx) => {
+    const post = part(0.8, 9, 0.8, white, { studs: false, castShadow: false });
+    post.position.set(dx, 4.5, 0);
+    holder.add(post);
+  });
+  const bar = part(12.8, 0.8, 0.8, white, { studs: false, castShadow: false });
+  bar.position.set(0, 9, 0);
+  holder.add(bar);
+  return holder;
+}
+
+export function picnicTable(world, x, z, group) {
+  const g = group || world.root;
+  const top = part(9, 0.8, 5, bc('Reddish brown'), { repeat: [9, 5], castShadow: false });
+  top.position.set(x, 3.6, z);
+  g.add(top);
+  [-3.5, 3.5].forEach((dx) => {
+    const leg = part(0.8, 3.2, 0.8, bc('Dark stone grey'), { studs: false, castShadow: false });
+    leg.position.set(x + dx, 1.6, z);
+    g.add(leg);
+  });
+  return g;
+}
+
+export function stoneColumn(world, x, z, group, opts = {}) {
+  const g = group || world.root;
+  const y = opts.y || 0;
+  const h = opts.height || 14;
+  const colour = opts.colour !== undefined ? opts.colour : bc('Cool yellow');
+  const base = part(4.2, 1.6, 4.2, colour, { studs: false, castShadow: false });
+  base.position.set(x, y + 0.8, z);
+  g.add(base);
+  const shaft = part(2.6, h, 2.6, colour, { studs: false, castShadow: false });
+  shaft.position.set(x, y + 1.6 + h / 2, z);
+  g.add(shaft);
+  const cap = part(4.6, 1.2, 4.6, bc('Institutional white'), { studs: false, castShadow: false });
+  cap.position.set(x, y + 1.6 + h + 0.6, z);
+  g.add(cap);
+  return g;
+}
+
+export function marketStall(world, x, z, group, opts = {}) {
+  const g = group || world.root;
+  const yaw = opts.yaw || 0;
+  const holder = new THREE.Group();
+  holder.position.set(x, 0, z);
+  holder.rotation.y = yaw;
+  g.add(holder);
+  const cloth = opts.cloth !== undefined ? opts.cloth : bc('Bright red');
+  const counter = part(8, 3.2, 4, bc('Reddish brown'), { studs: false, castShadow: false });
+  counter.position.set(0, 1.6, 0);
+  holder.add(counter);
+  [-3.6, 3.6].forEach((dx) => {
+    const post = part(0.6, 8, 0.6, bc('Reddish brown'), { studs: false, castShadow: false });
+    post.position.set(dx, 4, -1.4);
+    holder.add(post);
+  });
+  const awning = part(9, 0.5, 6, cloth, { studs: false, castShadow: false });
+  awning.position.set(0, 8.2, 0.4);
+  awning.rotation.x = -0.18;
+  holder.add(awning);
+  return holder;
+}
+
+export function pierDeck(world, x, z, group) {
+  const g = group || world.root;
+  const wood = bc('Reddish brown');
+  const deck = part(28, 1.1, 12, wood, { repeat: [28, 12], castShadow: false });
+  deck.position.set(x, 0.55, z);
+  g.add(deck);
+  [-12, -4, 4, 12].forEach((dx) => {
+    [-5, 5].forEach((dz) => {
+      const post = part(0.8, 4.2, 0.8, wood, { studs: false, castShadow: false });
+      post.position.set(x + dx, 2.7, z + dz);
+      g.add(post);
+    });
+  });
+  [-5, 5].forEach((dz) => {
+    const rail = part(26, 0.4, 0.4, wood, { studs: false, castShadow: false });
+    rail.position.set(x, 4.6, z + dz);
+    g.add(rail);
+  });
+  const hut = part(8, 6, 8, bc('Cool yellow'), { studs: false, castShadow: false });
+  hut.position.set(x + 6, 4.1, z);
+  g.add(hut);
+  const roof = part(10, 1.2, 10, bc('Bright bluish green'), { studs: false, castShadow: false });
+  roof.position.set(x + 6, 7.7, z);
+  g.add(roof);
+  return g;
+}
+
+export function sidePost(world, x, y, z, group, opts = {}) {
+  const g = group || world.root;
+  const h = opts.height || 8;
+  const colour = opts.colour !== undefined ? opts.colour : bc('Institutional white');
+  const post = part(0.8, h, 0.8, colour, { studs: false, castShadow: false });
+  post.position.set(x, y + h / 2, z);
+  g.add(post);
+  return post;
+}
+
 // ----------------------------------------------------------- the word stand
 // A coloured plinth, a brick-built 3D item sitting on it, and a low nameplate.
 export function wordStand(world, x, y, z, word, colour, group, data = {}) {
@@ -1735,16 +1868,24 @@ export function answerFlag(world, x, y, z, label, colour, group, data = {}) {
 // textures — and it means a pupil running the length of a course never catches
 // the clouds sliding past the wrong way.
 
-function skyboxTexture() {
+function skyboxTexture(palette = {}) {
+  const zenith = palette.zenith || '#125aa8';
+  const mid = palette.mid || '#3d92d4';
+  const haze = palette.haze || '#8ecaed';
+  const horizon = palette.horizon || '#d8eefb';
+  const belowHaze = palette.belowHaze || '#c6e2f0';
+  const below = palette.below || '#a8c6d8';
+  const cloudAmt = palette.clouds === undefined ? 1 : palette.clouds;
+
   return canvasTexture(2048, 1024, (g, w, h) => {
     // The dome's UVs are equirectangular: v = 0 straight up, v = 1 straight down.
     const grad = g.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0.00, '#125aa8');   // zenith — Roblox blue, not navy
-    grad.addColorStop(0.30, '#3d92d4');
-    grad.addColorStop(0.46, '#8ecaed');
-    grad.addColorStop(0.50, '#d8eefb');   // the haze right on the horizon
-    grad.addColorStop(0.54, '#c6e2f0');
-    grad.addColorStop(1.00, '#a8c6d8');   // below the horizon, rarely seen
+    grad.addColorStop(0.00, zenith);
+    grad.addColorStop(0.30, mid);
+    grad.addColorStop(0.46, haze);
+    grad.addColorStop(0.50, horizon);
+    grad.addColorStop(0.54, belowHaze);
+    grad.addColorStop(1.00, below);
     g.fillStyle = grad;
     g.fillRect(0, 0, w, h);
 
@@ -1780,8 +1921,10 @@ function skyboxTexture() {
     // where a player stands looking — the sky came out overcast white instead of
     // Roblox blue. The band from v = 0.38 down to the horizon is left clear on
     // purpose, so the blue is what you see when you look straight ahead.
-    for (let i = 0; i < 15; i++) cloud(Math.random() * w, h * (0.22 + Math.random() * 0.13), 1.1, 0.9);
-    for (let i = 0; i < 11; i++) cloud(Math.random() * w, h * (0.09 + Math.random() * 0.13), 0.8, 0.72);
+    const nHigh = Math.round(15 * cloudAmt);
+    const nLow = Math.round(11 * cloudAmt);
+    for (let i = 0; i < nHigh; i++) cloud(Math.random() * w, h * (0.22 + Math.random() * 0.13), 1.1, 0.9);
+    for (let i = 0; i < nLow; i++) cloud(Math.random() * w, h * (0.09 + Math.random() * 0.13), 0.8, 0.72);
   });
 }
 
@@ -1802,6 +1945,7 @@ export function makeSky(scene) {
   scene.add(dome);
   // Soft cloud puffs floating in 3D, out past the play area, so the sky has
   // parallax depth as the camera moves instead of one flat painted backdrop.
+  const puffs = [];
   for (let i = 0; i < 9; i++) {
     const ang = (i / 9) * Math.PI * 2 + Math.random() * 0.5;
     const dist = 620 + Math.random() * 260;
@@ -1809,6 +1953,7 @@ export function makeSky(scene) {
     puff.scale.y *= 0.42;
     puff.position.set(Math.cos(ang) * dist, 230 + Math.random() * 160, Math.sin(ang) * dist);
     scene.add(puff);
+    puffs.push(puff);
   }
 
   // The sun itself, with the soft halo Roblox draws around it.
@@ -1848,15 +1993,14 @@ export function makeSky(scene) {
   const rim = new THREE.DirectionalLight(0xbfe3ff, 0.6);
   rim.position.set(-90, 70, -180);
   scene.add(rim);
-  const _rimDone = true;
-  scene.add(fill);
 
   // Roblox's Lighting has an Ambient and an OutdoorAmbient — a flat term that
   // lifts every face whichever way it points. Without one, the two shopfronts
   // whose streets run away from the sun get no key light at all and a white
   // awning stripe reads as grey. A directional fill cannot fix that on its own;
   // it only moves the problem to whichever face is turned away from IT.
-  scene.add(new THREE.AmbientLight(0xfff1dd, 0.20));
+  const ambient = new THREE.AmbientLight(0xfff1dd, 0.20);
+  scene.add(ambient);
 
   const sun = new THREE.DirectionalLight(0xffeec2, 2.9);
   sun.position.set(120, 220, 90);
@@ -1881,7 +2025,49 @@ export function makeSky(scene) {
   scene.add(sunGlow);
 
   scene.userData.sun = sun;
+  scene.userData.sky = { dome, hemi, fill, rim, ambient, sun, disc, sunGlow, puffs };
   return { sun, hemi, dome };
+}
+
+// Retint the existing sky kit for a pack's biome. Lights are created once in
+// makeSky — calling this on a second Play must not add another sun.
+export function applyWorldLook(scene, renderer, look) {
+  if (!look) return;
+  const sky = look.sky || {};
+  const lights = look.lights || {};
+  if (sky.background !== undefined) scene.background = new THREE.Color(sky.background);
+  if (scene.fog && sky.fog !== undefined) scene.fog.color.set(sky.fog);
+
+  const kit = scene.userData.sky;
+  if (kit && kit.dome) {
+    const next = skyboxTexture(sky);
+    const old = kit.dome.material.map;
+    kit.dome.material.map = next;
+    kit.dome.material.needsUpdate = true;
+    if (old && old !== next) old.dispose();
+  }
+  if (kit && kit.hemi) {
+    if (lights.hemiSky !== undefined) kit.hemi.color.set(lights.hemiSky);
+    if (lights.hemiGround !== undefined) kit.hemi.groundColor.set(lights.hemiGround);
+    if (lights.hemiInt !== undefined) kit.hemi.intensity = lights.hemiInt;
+  }
+  if (kit && kit.fill) {
+    if (lights.fill !== undefined) kit.fill.color.set(lights.fill);
+    if (lights.fillInt !== undefined) kit.fill.intensity = lights.fillInt;
+  }
+  if (kit && kit.rim) {
+    if (lights.rim !== undefined) kit.rim.color.set(lights.rim);
+    if (lights.rimInt !== undefined) kit.rim.intensity = lights.rimInt;
+  }
+  if (kit && kit.ambient) {
+    if (lights.ambient !== undefined) kit.ambient.color.set(lights.ambient);
+    if (lights.ambientInt !== undefined) kit.ambient.intensity = lights.ambientInt;
+  }
+  if (kit && kit.sun) {
+    if (lights.sun !== undefined) kit.sun.color.set(lights.sun);
+    if (lights.sunInt !== undefined) kit.sun.intensity = lights.sunInt;
+  }
+  if (renderer && look.env) makeEnvironment(renderer, scene, look.env);
 }
 
 // Move the sun's shadow box to wherever the player is. Called once a frame.
@@ -1899,23 +2085,28 @@ export function keepSunOver(scene, pos) {
 // ambient and a faint sheen on its rounded edges — the single biggest step
 // from a flat-lit toy scene to an "HD" one. Uses only THREE core, so the build
 // (which strips module imports) is unaffected.
-export function makeEnvironment(renderer, scene) {
+export function makeEnvironment(renderer, scene, env = {}) {
   const pmrem = new THREE.PMREMGenerator(renderer);
   const c = document.createElement('canvas');
   c.width = 32; c.height = 128;
   const g = c.getContext('2d');
   const grad = g.createLinearGradient(0, 0, 0, 128);
-  grad.addColorStop(0.00, '#eaf3ff');   // zenith
-  grad.addColorStop(0.42, '#cfe6fb');   // sky
-  grad.addColorStop(0.50, '#c9d8b4');   // horizon haze
-  grad.addColorStop(0.62, '#9fae86');   // near ground
-  grad.addColorStop(1.00, '#7d6f52');   // ground bounce
+  grad.addColorStop(0.00, env.zenith || '#eaf3ff');
+  grad.addColorStop(0.42, env.sky || '#cfe6fb');
+  grad.addColorStop(0.50, env.haze || '#c9d8b4');
+  grad.addColorStop(0.62, env.near || '#9fae86');
+  grad.addColorStop(1.00, env.bounce || '#7d6f52');
   g.fillStyle = grad; g.fillRect(0, 0, 32, 128);
   const tex = new THREE.CanvasTexture(c);
   tex.mapping = THREE.EquirectangularReflectionMapping;
   tex.colorSpace = THREE.SRGBColorSpace;
   const rt = pmrem.fromEquirectangular(tex);
+  if (scene.userData.envRT) {
+    scene.environment = null;
+    scene.userData.envRT.dispose();
+  }
   scene.environment = rt.texture;
+  scene.userData.envRT = rt;
   tex.dispose();
   pmrem.dispose();
 }

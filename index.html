@@ -1572,7 +1572,7 @@ body.touch .jump-btn { display: block; }
       </div>
     </details>
     <p id="title-hint" class="hint-text">Tip: the first run needs internet to fetch the 3D engine.</p>
-    <p class="build-stamp">build 2026-09-02 23:09</p>
+    <p class="build-stamp">build 2026-09-03 13:32</p>
   </div>
 </div>
 
@@ -3068,9 +3068,9 @@ function wordBillboard(world, x, y, z, word, emoji, w, h, group) {
 }
 
 // The classic obby start arch.
-function startArch(world, x, y, z, group) {
+function startArch(world, x, y, z, group, opts = {}) {
   const g = group || world.root;
-  const colour = bc('Bright yellow');
+  const colour = opts.colour !== undefined ? opts.colour : bc('Bright yellow');
   [-7, 7].forEach((dx) => {
     const leg = part(2, 14, 2, colour);
     world.place(leg, x + dx, y + 7, z, { parent: g });
@@ -3143,14 +3143,16 @@ function plateau(world, size, thickness, colour, group, opts = {}) {
 // island into the shallows and simply walk back up again — no swim state, no
 // drowning, no rescue teleport, and not one line of new controller code. The
 // 'water' trigger only slows them down while they are in it.
-function seaPlane(world, top, size, group) {
+function seaPlane(world, top, size, group, opts = {}) {
   const g = group || world.root;
 
-  const floor = part(size, 60, size, bc('Sand blue'), { studs: false, castShadow: false });
+  const floorColour = opts.floor !== undefined ? opts.floor : bc('Sand blue');
+  const waterColour = opts.water !== undefined ? opts.water : 0x2ea6dd;
+  const floor = part(size, 60, size, floorColour, { studs: false, castShadow: false });
   world.place(floor, 0, top - 30, 0, { parent: g, kind: 'ground' });
 
   const mat = new THREE.MeshStandardMaterial({
-    color: 0x2ea6dd, transparent: true, opacity: 0.7, roughness: 0.12, metalness: 0.2,
+    color: waterColour, transparent: true, opacity: 0.7, roughness: 0.12, metalness: 0.2,
   });
   const surf = new THREE.Mesh(new THREE.BoxGeometry(size, 0.5, size), mat);
   surf.position.set(0, top + 0.2, 0);
@@ -3394,7 +3396,7 @@ function treeProp(world, x, y, z, group, opts = {}) {
   // solids, so a scenery-only trunk let the camera sit inside the wood and fill
   // the screen with brown.
   const trunk = part(1.4, h, 1.4, bc('Reddish brown'), { studs: false, castShadow: false });
-  world.place(trunk, x, y + h / 2, z, { parent: g, kind: 'brick' });
+  world.place(trunk, x, y + h / 2, z, { parent: g, kind: 'brick', solid: opts.solid !== false });
   groundShadow(world, x, z, (opts.palm ? 4.2 : 4.6), g, { opacity: 0.5 });
 
   const leaf = opts.leaf || bc('Bright green');
@@ -3539,6 +3541,10 @@ function paintTop(mesh, tex, sx, sz, studsPerTile = 4) {
 // shadow — they exist to fill the skyline and cost almost nothing.
 function distantIsles(world, group, opts = {}) {
   const g = group || world.root;
+  const sand = opts.sand !== undefined ? opts.sand : bc('Cool yellow');
+  const mid = opts.mid !== undefined ? opts.mid : bc('Bright green');
+  const grass = opts.grass !== undefined ? opts.grass : bc('Br. yellowish green');
+  const peak = opts.top !== undefined ? opts.top : bc('Institutional white');
 
   // Two rings of hills. The near ring is the low green landfall; the far ring
   // sits much further out and stands much taller, so the horizon has real depth
@@ -3556,10 +3562,10 @@ function distantIsles(world, group, opts = {}) {
       for (let k = 0; k < layers; k++) {
         const f = 1 - k / (layers + 0.7);
         const top = k === layers - 1;
-        const colour = k === 0 ? bc('Cool yellow')
-          : (top && layers >= 6) ? bc('Institutional white')
-            : top ? bc('Br. yellowish green')
-              : bc('Bright green');
+        const colour = k === 0 ? sand
+          : (top && layers >= 6) ? peak
+            : top ? grass
+              : mid;
         const slab = part(w * f, step + 3, w * f * 0.8, colour, { studs: false, castShadow: false });
         slab.receiveShadow = false;
         slab.position.set(x, -3 + k * step, z);
@@ -4085,6 +4091,133 @@ function bushProp(world, x, y, z, group, opts = {}) {
   return g;
 }
 
+// ----------------------------------------------------------- biome landmarks
+// Scenery only. Nothing here is solid — a landmark that shoves a pupil is a
+// landmark that breaks the island's one rule.
+
+function flagPole(world, x, z, group, opts = {}) {
+  const g = group || world.root;
+  const y = opts.y || 0;
+  const h = opts.height || 16;
+  const pole = part(0.7, h, 0.7, bc('Institutional white'), { studs: false, castShadow: false });
+  pole.position.set(x, y + h / 2, z);
+  g.add(pole);
+  const flag = part(6.5, 3.6, 0.25, opts.colour !== undefined ? opts.colour : bc('Bright red'),
+    { studs: false });
+  flag.position.set(x + 3.5, y + h - 2.2, z);
+  g.add(flag);
+  return g;
+}
+
+function goalPosts(world, x, z, group, opts = {}) {
+  const g = group || world.root;
+  const yaw = opts.yaw || 0;
+  const holder = new THREE.Group();
+  holder.position.set(x, 0, z);
+  holder.rotation.y = yaw;
+  g.add(holder);
+  const white = bc('Institutional white');
+  [-6, 6].forEach((dx) => {
+    const post = part(0.8, 9, 0.8, white, { studs: false, castShadow: false });
+    post.position.set(dx, 4.5, 0);
+    holder.add(post);
+  });
+  const bar = part(12.8, 0.8, 0.8, white, { studs: false, castShadow: false });
+  bar.position.set(0, 9, 0);
+  holder.add(bar);
+  return holder;
+}
+
+function picnicTable(world, x, z, group) {
+  const g = group || world.root;
+  const top = part(9, 0.8, 5, bc('Reddish brown'), { repeat: [9, 5], castShadow: false });
+  top.position.set(x, 3.6, z);
+  g.add(top);
+  [-3.5, 3.5].forEach((dx) => {
+    const leg = part(0.8, 3.2, 0.8, bc('Dark stone grey'), { studs: false, castShadow: false });
+    leg.position.set(x + dx, 1.6, z);
+    g.add(leg);
+  });
+  return g;
+}
+
+function stoneColumn(world, x, z, group, opts = {}) {
+  const g = group || world.root;
+  const y = opts.y || 0;
+  const h = opts.height || 14;
+  const colour = opts.colour !== undefined ? opts.colour : bc('Cool yellow');
+  const base = part(4.2, 1.6, 4.2, colour, { studs: false, castShadow: false });
+  base.position.set(x, y + 0.8, z);
+  g.add(base);
+  const shaft = part(2.6, h, 2.6, colour, { studs: false, castShadow: false });
+  shaft.position.set(x, y + 1.6 + h / 2, z);
+  g.add(shaft);
+  const cap = part(4.6, 1.2, 4.6, bc('Institutional white'), { studs: false, castShadow: false });
+  cap.position.set(x, y + 1.6 + h + 0.6, z);
+  g.add(cap);
+  return g;
+}
+
+function marketStall(world, x, z, group, opts = {}) {
+  const g = group || world.root;
+  const yaw = opts.yaw || 0;
+  const holder = new THREE.Group();
+  holder.position.set(x, 0, z);
+  holder.rotation.y = yaw;
+  g.add(holder);
+  const cloth = opts.cloth !== undefined ? opts.cloth : bc('Bright red');
+  const counter = part(8, 3.2, 4, bc('Reddish brown'), { studs: false, castShadow: false });
+  counter.position.set(0, 1.6, 0);
+  holder.add(counter);
+  [-3.6, 3.6].forEach((dx) => {
+    const post = part(0.6, 8, 0.6, bc('Reddish brown'), { studs: false, castShadow: false });
+    post.position.set(dx, 4, -1.4);
+    holder.add(post);
+  });
+  const awning = part(9, 0.5, 6, cloth, { studs: false, castShadow: false });
+  awning.position.set(0, 8.2, 0.4);
+  awning.rotation.x = -0.18;
+  holder.add(awning);
+  return holder;
+}
+
+function pierDeck(world, x, z, group) {
+  const g = group || world.root;
+  const wood = bc('Reddish brown');
+  const deck = part(28, 1.1, 12, wood, { repeat: [28, 12], castShadow: false });
+  deck.position.set(x, 0.55, z);
+  g.add(deck);
+  [-12, -4, 4, 12].forEach((dx) => {
+    [-5, 5].forEach((dz) => {
+      const post = part(0.8, 4.2, 0.8, wood, { studs: false, castShadow: false });
+      post.position.set(x + dx, 2.7, z + dz);
+      g.add(post);
+    });
+  });
+  [-5, 5].forEach((dz) => {
+    const rail = part(26, 0.4, 0.4, wood, { studs: false, castShadow: false });
+    rail.position.set(x, 4.6, z + dz);
+    g.add(rail);
+  });
+  const hut = part(8, 6, 8, bc('Cool yellow'), { studs: false, castShadow: false });
+  hut.position.set(x + 6, 4.1, z);
+  g.add(hut);
+  const roof = part(10, 1.2, 10, bc('Bright bluish green'), { studs: false, castShadow: false });
+  roof.position.set(x + 6, 7.7, z);
+  g.add(roof);
+  return g;
+}
+
+function sidePost(world, x, y, z, group, opts = {}) {
+  const g = group || world.root;
+  const h = opts.height || 8;
+  const colour = opts.colour !== undefined ? opts.colour : bc('Institutional white');
+  const post = part(0.8, h, 0.8, colour, { studs: false, castShadow: false });
+  post.position.set(x, y + h / 2, z);
+  g.add(post);
+  return post;
+}
+
 // ----------------------------------------------------------- the word stand
 // A coloured plinth, a brick-built 3D item sitting on it, and a low nameplate.
 function wordStand(world, x, y, z, word, colour, group, data = {}) {
@@ -4251,16 +4384,24 @@ function answerFlag(world, x, y, z, label, colour, group, data = {}) {
 // textures — and it means a pupil running the length of a course never catches
 // the clouds sliding past the wrong way.
 
-function skyboxTexture() {
+function skyboxTexture(palette = {}) {
+  const zenith = palette.zenith || '#125aa8';
+  const mid = palette.mid || '#3d92d4';
+  const haze = palette.haze || '#8ecaed';
+  const horizon = palette.horizon || '#d8eefb';
+  const belowHaze = palette.belowHaze || '#c6e2f0';
+  const below = palette.below || '#a8c6d8';
+  const cloudAmt = palette.clouds === undefined ? 1 : palette.clouds;
+
   return canvasTexture(2048, 1024, (g, w, h) => {
     // The dome's UVs are equirectangular: v = 0 straight up, v = 1 straight down.
     const grad = g.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0.00, '#125aa8');   // zenith — Roblox blue, not navy
-    grad.addColorStop(0.30, '#3d92d4');
-    grad.addColorStop(0.46, '#8ecaed');
-    grad.addColorStop(0.50, '#d8eefb');   // the haze right on the horizon
-    grad.addColorStop(0.54, '#c6e2f0');
-    grad.addColorStop(1.00, '#a8c6d8');   // below the horizon, rarely seen
+    grad.addColorStop(0.00, zenith);
+    grad.addColorStop(0.30, mid);
+    grad.addColorStop(0.46, haze);
+    grad.addColorStop(0.50, horizon);
+    grad.addColorStop(0.54, belowHaze);
+    grad.addColorStop(1.00, below);
     g.fillStyle = grad;
     g.fillRect(0, 0, w, h);
 
@@ -4296,8 +4437,10 @@ function skyboxTexture() {
     // where a player stands looking — the sky came out overcast white instead of
     // Roblox blue. The band from v = 0.38 down to the horizon is left clear on
     // purpose, so the blue is what you see when you look straight ahead.
-    for (let i = 0; i < 15; i++) cloud(Math.random() * w, h * (0.22 + Math.random() * 0.13), 1.1, 0.9);
-    for (let i = 0; i < 11; i++) cloud(Math.random() * w, h * (0.09 + Math.random() * 0.13), 0.8, 0.72);
+    const nHigh = Math.round(15 * cloudAmt);
+    const nLow = Math.round(11 * cloudAmt);
+    for (let i = 0; i < nHigh; i++) cloud(Math.random() * w, h * (0.22 + Math.random() * 0.13), 1.1, 0.9);
+    for (let i = 0; i < nLow; i++) cloud(Math.random() * w, h * (0.09 + Math.random() * 0.13), 0.8, 0.72);
   });
 }
 
@@ -4318,6 +4461,7 @@ function makeSky(scene) {
   scene.add(dome);
   // Soft cloud puffs floating in 3D, out past the play area, so the sky has
   // parallax depth as the camera moves instead of one flat painted backdrop.
+  const puffs = [];
   for (let i = 0; i < 9; i++) {
     const ang = (i / 9) * Math.PI * 2 + Math.random() * 0.5;
     const dist = 620 + Math.random() * 260;
@@ -4325,6 +4469,7 @@ function makeSky(scene) {
     puff.scale.y *= 0.42;
     puff.position.set(Math.cos(ang) * dist, 230 + Math.random() * 160, Math.sin(ang) * dist);
     scene.add(puff);
+    puffs.push(puff);
   }
 
   // The sun itself, with the soft halo Roblox draws around it.
@@ -4364,15 +4509,14 @@ function makeSky(scene) {
   const rim = new THREE.DirectionalLight(0xbfe3ff, 0.6);
   rim.position.set(-90, 70, -180);
   scene.add(rim);
-  const _rimDone = true;
-  scene.add(fill);
 
   // Roblox's Lighting has an Ambient and an OutdoorAmbient — a flat term that
   // lifts every face whichever way it points. Without one, the two shopfronts
   // whose streets run away from the sun get no key light at all and a white
   // awning stripe reads as grey. A directional fill cannot fix that on its own;
   // it only moves the problem to whichever face is turned away from IT.
-  scene.add(new THREE.AmbientLight(0xfff1dd, 0.20));
+  const ambient = new THREE.AmbientLight(0xfff1dd, 0.20);
+  scene.add(ambient);
 
   const sun = new THREE.DirectionalLight(0xffeec2, 2.9);
   sun.position.set(120, 220, 90);
@@ -4397,7 +4541,49 @@ function makeSky(scene) {
   scene.add(sunGlow);
 
   scene.userData.sun = sun;
+  scene.userData.sky = { dome, hemi, fill, rim, ambient, sun, disc, sunGlow, puffs };
   return { sun, hemi, dome };
+}
+
+// Retint the existing sky kit for a pack's biome. Lights are created once in
+// makeSky — calling this on a second Play must not add another sun.
+function applyWorldLook(scene, renderer, look) {
+  if (!look) return;
+  const sky = look.sky || {};
+  const lights = look.lights || {};
+  if (sky.background !== undefined) scene.background = new THREE.Color(sky.background);
+  if (scene.fog && sky.fog !== undefined) scene.fog.color.set(sky.fog);
+
+  const kit = scene.userData.sky;
+  if (kit && kit.dome) {
+    const next = skyboxTexture(sky);
+    const old = kit.dome.material.map;
+    kit.dome.material.map = next;
+    kit.dome.material.needsUpdate = true;
+    if (old && old !== next) old.dispose();
+  }
+  if (kit && kit.hemi) {
+    if (lights.hemiSky !== undefined) kit.hemi.color.set(lights.hemiSky);
+    if (lights.hemiGround !== undefined) kit.hemi.groundColor.set(lights.hemiGround);
+    if (lights.hemiInt !== undefined) kit.hemi.intensity = lights.hemiInt;
+  }
+  if (kit && kit.fill) {
+    if (lights.fill !== undefined) kit.fill.color.set(lights.fill);
+    if (lights.fillInt !== undefined) kit.fill.intensity = lights.fillInt;
+  }
+  if (kit && kit.rim) {
+    if (lights.rim !== undefined) kit.rim.color.set(lights.rim);
+    if (lights.rimInt !== undefined) kit.rim.intensity = lights.rimInt;
+  }
+  if (kit && kit.ambient) {
+    if (lights.ambient !== undefined) kit.ambient.color.set(lights.ambient);
+    if (lights.ambientInt !== undefined) kit.ambient.intensity = lights.ambientInt;
+  }
+  if (kit && kit.sun) {
+    if (lights.sun !== undefined) kit.sun.color.set(lights.sun);
+    if (lights.sunInt !== undefined) kit.sun.intensity = lights.sunInt;
+  }
+  if (renderer && look.env) makeEnvironment(renderer, scene, look.env);
 }
 
 // Move the sun's shadow box to wherever the player is. Called once a frame.
@@ -4415,23 +4601,28 @@ function keepSunOver(scene, pos) {
 // ambient and a faint sheen on its rounded edges — the single biggest step
 // from a flat-lit toy scene to an "HD" one. Uses only THREE core, so the build
 // (which strips module imports) is unaffected.
-function makeEnvironment(renderer, scene) {
+function makeEnvironment(renderer, scene, env = {}) {
   const pmrem = new THREE.PMREMGenerator(renderer);
   const c = document.createElement('canvas');
   c.width = 32; c.height = 128;
   const g = c.getContext('2d');
   const grad = g.createLinearGradient(0, 0, 0, 128);
-  grad.addColorStop(0.00, '#eaf3ff');   // zenith
-  grad.addColorStop(0.42, '#cfe6fb');   // sky
-  grad.addColorStop(0.50, '#c9d8b4');   // horizon haze
-  grad.addColorStop(0.62, '#9fae86');   // near ground
-  grad.addColorStop(1.00, '#7d6f52');   // ground bounce
+  grad.addColorStop(0.00, env.zenith || '#eaf3ff');
+  grad.addColorStop(0.42, env.sky || '#cfe6fb');
+  grad.addColorStop(0.50, env.haze || '#c9d8b4');
+  grad.addColorStop(0.62, env.near || '#9fae86');
+  grad.addColorStop(1.00, env.bounce || '#7d6f52');
   g.fillStyle = grad; g.fillRect(0, 0, 32, 128);
   const tex = new THREE.CanvasTexture(c);
   tex.mapping = THREE.EquirectangularReflectionMapping;
   tex.colorSpace = THREE.SRGBColorSpace;
   const rt = pmrem.fromEquirectangular(tex);
+  if (scene.userData.envRT) {
+    scene.environment = null;
+    scene.userData.envRT.dispose();
+  }
   scene.environment = rt.texture;
+  scene.userData.envRT = rt;
   tex.dispose();
   pmrem.dispose();
 }
@@ -5713,6 +5904,7 @@ function setSpeechEnabled(on) {
 //   {
 //     id: 'toys', name: 'Toys', emoji: '🪁', blurb: 'kite, doll, train…',
 //     years: [1, 2],                        // which classes are offered it
+//     world: 'fair',                        // OPTIONAL: biome id from worlds.js (fallback: town)
 //     book: 'Super Minds 1 · Unit 2 (p.22)',// where it came from, shown to the teacher
 //     ask: 'Which one is {word}?',          // OPTIONAL: override the obby's question
 //     quiz: [ … ],                          // OPTIONAL: written questions (Year 4)
@@ -5838,6 +6030,7 @@ const PACKS = [
     emoji: '👋',
     blurb: 'hello, name, how old are you',
     years: [1],
+    world: 'town',
     book: 'Super Minds 1 · Starter (p.4–5)',
     ask: 'Jump on {word}.',
     words: [
@@ -5857,6 +6050,7 @@ const PACKS = [
     emoji: '🔢',
     blurb: 'one, two, three… ten',
     years: [1, 2],
+    world: 'town',
     book: 'Super Minds 1 · Starter (p.5)',
     ask: 'Jump on the number {word}.',
     words: [
@@ -5878,6 +6072,7 @@ const PACKS = [
     emoji: '🎨',
     blurb: 'red, blue, yellow, green…',
     years: [1, 2],
+    world: 'town',
     book: 'Super Minds 1 · Starter & Unit 7',
     ask: 'Jump on the colour {word}.',
     words: [
@@ -5899,6 +6094,7 @@ const PACKS = [
     emoji: '✏️',
     blurb: 'pen, pencil, book, bag, desk…',
     years: [1, 2],
+    world: 'campus',
     book: "Super Minds 1 · Unit 1 (p.10) — What's this? It's a pencil.",
     ask: "What's this? Jump on the {word}.",
     words: [
@@ -5919,6 +6115,7 @@ const PACKS = [
     emoji: '🪁',
     blurb: 'kite, doll, train, ball, bike…',
     years: [1, 2],
+    world: 'fair',
     book: "Super Minds 1 · Unit 2 (p.22) — What's his favourite toy?",
     ask: 'Jump on the {word}.',
     words: [
@@ -5940,6 +6137,7 @@ const PACKS = [
     emoji: '🐶',
     blurb: 'dog, cat, duck, frog, spider…',
     years: [1, 2],
+    world: 'jungle',
     book: 'Super Minds 1 · Unit 3 (p.34) — I like / I don’t like dogs.',
     ask: 'Jump on the {word}.',
     words: [
@@ -5959,6 +6157,7 @@ const PACKS = [
     emoji: '🍕',
     blurb: 'pizza, cake, apple, banana…',
     years: [1, 2],
+    world: 'market',
     book: 'Super Minds 1 · Unit 4 (p.46) — I’ve got / I haven’t got a sandwich.',
     ask: 'Jump on the {word}.',
     words: [
@@ -5982,6 +6181,7 @@ const PACKS = [
     emoji: '📅',
     blurb: 'Monday, Tuesday… Sunday',
     years: [2],
+    world: 'town',
     book: 'Super Minds 1 · Unit 5 (p.58) — I watch TV on Sundays.',
     ask: 'Which day is it? {sentence}',
     words: [
@@ -6001,6 +6201,7 @@ const PACKS = [
     emoji: '🏚️',
     blurb: 'kitchen, bedroom, stairs, cellar…',
     years: [2],
+    world: 'town',
     book: "Super Minds 1 · Unit 6 (p.70) — There's a monster. How many cars are there?",
     ask: 'Listen! {sentence} Where is it?',
     words: [
@@ -6020,6 +6221,7 @@ const PACKS = [
     emoji: '👕',
     blurb: 'T-shirt, jeans, socks, cap…',
     years: [2],
+    world: 'town',
     book: "Super Minds 1 · Unit 7 (p.82) — Olivia's wearing a red sweater.",
     ask: 'Listen! {sentence} Jump on it!',
     words: [
@@ -6041,6 +6243,7 @@ const PACKS = [
     emoji: '🤖',
     blurb: 'head, arm, hand, knee, foot…',
     years: [2],
+    world: 'clinic',
     book: "Super Minds 1 · Unit 8 (p.94) — I can/can't stand on one leg.",
     ask: "Let's make a robot! {sentence}",
     words: [
@@ -6060,6 +6263,7 @@ const PACKS = [
     emoji: '🏖️',
     blurb: 'swim, shells, ice cream, photos…',
     years: [2],
+    world: 'beach',
     book: "Super Minds 1 · Unit 9 (p.106) — Let's play the guitar. Where's the blue book?",
     ask: "Let's do it! {sentence}",
     words: [
@@ -6081,6 +6285,7 @@ const PACKS = [
     emoji: '🌏',
     blurb: 'countries, nationalities, routines',
     years: [4],
+    world: 'travel',
     book: 'Get Smart Plus 4 · Module 1 (p.5, PD p.168)',
     words: [
       { word: 'Malaysia', emoji: '🇲🇾', sentence: "I'm from Malaysia. I'm Malaysian." },
@@ -6111,6 +6316,7 @@ const PACKS = [
     emoji: '📚',
     blurb: 'school subjects and housework',
     years: [4],
+    world: 'campus',
     book: 'Get Smart Plus 4 · Module 2 (p.15, PD p.169, p.171)',
     words: [
       { word: 'Art', emoji: '🎨', sentence: 'My favourite subject is Art.' },
@@ -6143,6 +6349,7 @@ const PACKS = [
     emoji: '🏺',
     blurb: 'Egypt, the past simple, insects',
     years: [4],
+    world: 'ruins',
     book: 'Get Smart Plus 4 · Module 3 (p.27, PD p.171, p.173, p.174)',
     words: [
       { word: 'mummy', emoji: '🧟', sentence: 'The Egyptians made a mummy.' },
@@ -6174,6 +6381,7 @@ const PACKS = [
     emoji: '🎆',
     blurb: 'dates, ordinals, going to',
     years: [4],
+    world: 'fair',
     book: 'Get Smart Plus 4 · Module 4 (p.37, PD p.170, p.173)',
     words: [
       { word: 'parade', emoji: '🎏', sentence: "She's going to go to the parade." },
@@ -6205,6 +6413,7 @@ const PACKS = [
     emoji: '🥗',
     blurb: 'food, containers, some and any',
     years: [4],
+    world: 'market',
     book: 'Get Smart Plus 4 · Module 5 (p.49, PD p.173, p.175)',
     words: [
       { word: 'pear', emoji: '🍐', sentence: 'I want a pear.' },
@@ -6238,6 +6447,7 @@ const PACKS = [
     emoji: '🚌',
     blurb: 'transport, time, street safety',
     years: [4],
+    world: 'travel',
     book: 'Get Smart Plus 4 · Module 6 (p.59, PD p.174)',
     words: [
       { word: 'motorbike', emoji: '🏍️', sentence: 'He goes to work by motorbike.' },
@@ -6269,6 +6479,7 @@ const PACKS = [
     emoji: '♻️',
     blurb: 'recycling, materials, whose is it?',
     years: [4],
+    world: 'town',
     book: 'Get Smart Plus 4 · Module 7 (p.71, PD p.173, p.175)',
     words: [
       { word: 'recycling', emoji: '♻️', sentence: 'Everyone can recycle.' },
@@ -6300,6 +6511,7 @@ const PACKS = [
     emoji: '🦖',
     blurb: 'comparing animals, adjectives',
     years: [4],
+    world: 'jungle',
     book: 'Get Smart Plus 4 · Module 8 (p.81, PD p.170, p.171)',
     words: [
       { word: 'camel', emoji: '🐫', sentence: 'A camel has got a hump.' },
@@ -6331,6 +6543,7 @@ const PACKS = [
     emoji: '🏸',
     blurb: 'sports, equipment, the best',
     years: [4],
+    world: 'stadium',
     book: 'Get Smart Plus 4 · Module 9 (p.93, PD p.168)',
     words: [
       { word: 'badminton', emoji: '🏸', sentence: 'Badminton is popular in Malaysia.' },
@@ -6362,6 +6575,7 @@ const PACKS = [
     emoji: '🤒',
     blurb: 'illnesses, advice, should',
     years: [4],
+    world: 'clinic',
     book: 'Get Smart Plus 4 · Module 10 (p.103, PD p.169)',
     words: [
       { word: 'headache', emoji: '🤕', sentence: "I've got a headache." },
@@ -6402,6 +6616,11 @@ function defaultPackForYear(yearId) {
 
 const packById = (id) => PACKS.find((p) => p.id === id) || null;
 
+const KNOWN_WORLDS = [
+  'town', 'campus', 'fair', 'beach', 'jungle',
+  'stadium', 'market', 'clinic', 'ruins', 'travel',
+];
+
 function pickLine(lines, key) {
   const arr = lines && lines[key];
   if (!arr || !arr.length) return '';
@@ -6436,6 +6655,9 @@ function validateWords() {
 
     if (!p.years || !p.years.length) problems.push(`${p.id}: no years`);
     if (!p.book) problems.push(`${p.id}: no book reference`);
+    if (p.world && !KNOWN_WORLDS.includes(p.world)) {
+      problems.push(`${p.id}: unknown world '${p.world}'`);
+    }
 
     const need = Math.max(...YEARS.filter((y) => p.years.includes(y.id)).map((y) => y.choices), 3);
     if (!p.words || p.words.length < need) {
@@ -6474,6 +6696,357 @@ function validateWords() {
       `${PACKS.reduce((n, p) => n + (p.quiz ? p.quiz.length : 0), 0)} written questions — all valid.`);
   }
   return problems;
+}
+
+// ===== js/worlds.js =====
+// ============================================================================
+//  worlds.js — pack-themed biomes. The place follows the unit.
+// ============================================================================
+//
+// The words already change with the pack. This file is what makes the PLACE
+// change too: sky, ground, water, trees and the two landmark plots. Gameplay
+// layout is untouched — the island is still four streets off a plaza, the obby
+// is still a corridor over lava.
+//
+// A pack sets `world: 'beach'` in words.js. Unknown or missing ids fall back
+// to `town`, so a pack a teacher adds later still boots.
+
+const DEFAULT_WORLD_ID = 'town';
+
+const TOWN_SKY = {
+  zenith: '#125aa8', mid: '#3d92d4', haze: '#8ecaed',
+  horizon: '#d8eefb', belowHaze: '#c6e2f0', below: '#a8c6d8',
+  background: 0x63aee2, fog: 0xbcdcf0, clouds: 1,
+};
+
+const TOWN_LIGHTS = {
+  hemiSky: 0xcfe8ff, hemiGround: 0x8a7a4e, hemiInt: 0.42,
+  fill: 0xd6e2ee, fillInt: 0.42,
+  rim: 0xbfe3ff, rimInt: 0.6,
+  ambient: 0xfff1dd, ambientInt: 0.20,
+  sun: 0xffeec2, sunInt: 2.9,
+};
+
+const TOWN_ENV = {
+  zenith: '#eaf3ff', sky: '#cfe6fb', haze: '#c9d8b4',
+  near: '#9fae86', bounce: '#7d6f52',
+};
+
+const WORLDS = {
+  town: {
+    id: 'town', name: 'Park Town',
+    sky: TOWN_SKY, lights: TOWN_LIGHTS, env: TOWN_ENV,
+    plateau: 'Bright green', shore: 'Cool yellow', plaza: 'Medium stone grey',
+    plazaTex: 'pave',
+    seaFloor: 'Sand blue', seaWater: 0x2ea6dd,
+    groundTex: null, landmark: 'fair', landmarkPad: 'Br. yellowish green',
+    trees: { palm: false, density: 1, flowers: true },
+    isles: {
+      sand: 'Cool yellow', mid: 'Bright green',
+      grass: 'Br. yellowish green', top: 'Institutional white',
+    },
+    obby: {
+      lobby: 'Medium stone grey',
+      rim: ['Bright red', 'Bright blue', 'Bright yellow'],
+      arch: 'Bright yellow', sides: 'trees', finish: 'Bright yellow',
+    },
+  },
+
+  campus: {
+    id: 'campus', name: 'School Campus',
+    sky: TOWN_SKY, lights: TOWN_LIGHTS, env: TOWN_ENV,
+    plateau: 'Br. yellowish green', shore: 'Cool yellow', plaza: 'Medium stone grey',
+    plazaTex: 'pave',
+    seaFloor: 'Sand blue', seaWater: 0x2ea6dd,
+    groundTex: 'grass', landmark: 'campus', landmarkPad: 'Br. yellowish green',
+    trees: { palm: false, density: 0.7, flowers: true },
+    isles: {
+      sand: 'Cool yellow', mid: 'Bright green',
+      grass: 'Br. yellowish green', top: 'Institutional white',
+    },
+    obby: {
+      lobby: 'Cool yellow',
+      rim: ['Bright red', 'Bright blue', 'Cool yellow'],
+      arch: 'Bright red', sides: 'flags', finish: 'Bright yellow',
+    },
+  },
+
+  fair: {
+    id: 'fair', name: 'Toy Fair',
+    sky: {
+      zenith: '#1a62b0', mid: '#4aa0dc', haze: '#a8d8f4',
+      horizon: '#fff4d8', belowHaze: '#d8eaf8', below: '#b0d0e4',
+      background: 0x6ab8e8, fog: 0xd0e8f8, clouds: 1,
+    },
+    lights: {
+      hemiSky: 0xd8f0ff, hemiGround: 0xb09050, hemiInt: 0.46,
+      fill: 0xffe8d0, fillInt: 0.48,
+      rim: 0xffe8c8, rimInt: 0.55,
+      ambient: 0xfff4dd, ambientInt: 0.24,
+      sun: 0xfff0c4, sunInt: 3.0,
+    },
+    env: {
+      zenith: '#f4f8ff', sky: '#d8eefc', haze: '#e8d8a8',
+      near: '#b8ae70', bounce: '#8a7048',
+    },
+    plateau: 'Cool yellow', shore: 'Cool yellow', plaza: 'Hot pink',
+    plazaTex: null,
+    seaFloor: 'Sand blue', seaWater: 0x3eb4e4,
+    groundTex: null, landmark: 'fair', landmarkPad: 'Cool yellow',
+    trees: { palm: false, density: 0.55, flowers: true },
+    isles: {
+      sand: 'Cool yellow', mid: 'Bright yellow',
+      grass: 'Br. yellowish green', top: 'Hot pink',
+    },
+    obby: {
+      lobby: 'Hot pink',
+      rim: ['Bright yellow', 'Bright violet', 'Bright blue'],
+      arch: 'Bright yellow', sides: 'balloons', finish: 'Bright yellow',
+    },
+  },
+
+  beach: {
+    id: 'beach', name: 'Sandy Shore',
+    sky: {
+      zenith: '#0a72b8', mid: '#2eb8d8', haze: '#7ee4ea',
+      horizon: '#fff0c8', belowHaze: '#d8f0ea', below: '#88d0c8',
+      background: 0x48c8dc, fog: 0xc8f0f4, clouds: 0.7,
+    },
+    lights: {
+      hemiSky: 0xc8f4ff, hemiGround: 0xc8a060, hemiInt: 0.5,
+      fill: 0xffe0b8, fillInt: 0.5,
+      rim: 0xfff0c0, rimInt: 0.55,
+      ambient: 0xfff4dc, ambientInt: 0.26,
+      sun: 0xfff2b0, sunInt: 3.15,
+    },
+    env: {
+      zenith: '#e0f8ff', sky: '#b8ecf4', haze: '#e8d8a0',
+      near: '#c8b878', bounce: '#a08048',
+    },
+    plateau: 'Cool yellow', shore: 'Cool yellow', plaza: 'Cool yellow',
+    plazaTex: null,
+    seaFloor: 'Pastel blue', seaWater: 0x1ec8d0,
+    groundTex: null, landmark: 'pier', landmarkPad: 'Reddish brown',
+    trees: { palm: true, density: 0.7, flowers: false },
+    isles: {
+      sand: 'Cool yellow', mid: 'Bright bluish green',
+      grass: 'Br. yellowish green', top: 'Institutional white',
+    },
+    obby: {
+      lobby: 'Cool yellow',
+      rim: ['Bright bluish green', 'Bright yellow', 'Bright orange'],
+      arch: 'Bright bluish green', sides: 'palms', finish: 'Bright yellow',
+    },
+  },
+
+  jungle: {
+    id: 'jungle', name: 'Wild Grove',
+    sky: {
+      zenith: '#145868', mid: '#2a8a78', haze: '#7ab898',
+      horizon: '#c8dcb0', belowHaze: '#a8c898', below: '#6a8a68',
+      background: 0x4a9a80, fog: 0xa8c8b0, clouds: 0.85,
+    },
+    lights: {
+      hemiSky: 0xc0e8d8, hemiGround: 0x4a6a38, hemiInt: 0.4,
+      fill: 0xb8d0b0, fillInt: 0.38,
+      rim: 0xa8e0c8, rimInt: 0.5,
+      ambient: 0xe8f0d8, ambientInt: 0.18,
+      sun: 0xffe8b0, sunInt: 2.5,
+    },
+    env: {
+      zenith: '#d8f0e8', sky: '#b0dcc8', haze: '#a8c080',
+      near: '#6a8a50', bounce: '#4a5a32',
+    },
+    plateau: 'Bright green', shore: 'Br. yellowish green', plaza: 'Br. yellowish green',
+    plazaTex: 'grass',
+    seaFloor: 'Sand blue', seaWater: 0x1a8a9a,
+    groundTex: 'grass', landmark: 'grove', landmarkPad: 'Bright green',
+    trees: { palm: true, density: 1.55, flowers: true },
+    isles: {
+      sand: 'Br. yellowish green', mid: 'Bright green',
+      grass: 'Bright green', top: 'Br. yellowish green',
+    },
+    obby: {
+      lobby: 'Bright green',
+      rim: ['Reddish brown', 'Bright green', 'Br. yellowish green'],
+      arch: 'Bright green', sides: 'palms', finish: 'Br. yellowish green',
+    },
+  },
+
+  stadium: {
+    id: 'stadium', name: 'Sports Pitch',
+    sky: {
+      zenith: '#0e58a8', mid: '#3a98d8', haze: '#88d0f0',
+      horizon: '#e8f4fc', belowHaze: '#c8e0f0', below: '#98c0d8',
+      background: 0x58b0e4, fog: 0xc8e4f4, clouds: 0.55,
+    },
+    lights: {
+      hemiSky: 0xd8f0ff, hemiGround: 0x708048, hemiInt: 0.48,
+      fill: 0xe0e8f0, fillInt: 0.44,
+      rim: 0xc8e8ff, rimInt: 0.62,
+      ambient: 0xfff8e8, ambientInt: 0.22,
+      sun: 0xfff0c8, sunInt: 3.05,
+    },
+    env: {
+      zenith: '#f0f8ff', sky: '#c8e8fc', haze: '#c8d8a0',
+      near: '#7aa050', bounce: '#5a7040',
+    },
+    plateau: 'Bright green', shore: 'Br. yellowish green', plaza: 'Bright green',
+    plazaTex: 'grass',
+    seaFloor: 'Sand blue', seaWater: 0x2ea6dd,
+    groundTex: 'grass', landmark: 'pitch', landmarkPad: 'Bright green',
+    trees: { palm: false, density: 0.25, flowers: false },
+    isles: {
+      sand: 'Cool yellow', mid: 'Bright green',
+      grass: 'Br. yellowish green', top: 'Institutional white',
+    },
+    obby: {
+      lobby: 'Bright green',
+      rim: ['Institutional white', 'Bright red', 'Bright blue'],
+      arch: 'Institutional white', sides: 'posts', finish: 'Bright yellow',
+    },
+  },
+
+  market: {
+    id: 'market', name: 'Town Market',
+    sky: {
+      zenith: '#2460a8', mid: '#5a9ad0', haze: '#c8b888',
+      horizon: '#f4e0b8', belowHaze: '#d8c8a0', below: '#b0a078',
+      background: 0x88b0c8, fog: 0xe0d4b8, clouds: 0.9,
+    },
+    lights: {
+      hemiSky: 0xfff0d8, hemiGround: 0xa08048, hemiInt: 0.44,
+      fill: 0xffd8a8, fillInt: 0.46,
+      rim: 0xffe8c0, rimInt: 0.5,
+      ambient: 0xfff0d0, ambientInt: 0.24,
+      sun: 0xffe0a0, sunInt: 2.85,
+    },
+    env: {
+      zenith: '#fff4e0', sky: '#e8dcc0', haze: '#d8c490',
+      near: '#b09058', bounce: '#8a6840',
+    },
+    plateau: 'Cool yellow', shore: 'Cool yellow', plaza: 'Deep orange',
+    plazaTex: null,
+    seaFloor: 'Sand blue', seaWater: 0x3aa0c8,
+    groundTex: null, landmark: 'market', landmarkPad: 'Cool yellow',
+    trees: { palm: false, density: 0.6, flowers: true },
+    isles: {
+      sand: 'Cool yellow', mid: 'Deep orange',
+      grass: 'Br. yellowish green', top: 'Institutional white',
+    },
+    obby: {
+      lobby: 'Deep orange',
+      rim: ['Cool yellow', 'Bright red', 'Reddish brown'],
+      arch: 'Deep orange', sides: 'lamps', finish: 'Bright yellow',
+    },
+  },
+
+  clinic: {
+    id: 'clinic', name: 'Health Court',
+    sky: {
+      zenith: '#5a98c8', mid: '#98c8e4', haze: '#d0e8f4',
+      horizon: '#f4f8fc', belowHaze: '#e0ecf4', below: '#c0d4e0',
+      background: 0xb0d4e8, fog: 0xe4f0f8, clouds: 0.45,
+    },
+    lights: {
+      hemiSky: 0xf0f8ff, hemiGround: 0xb0b0b8, hemiInt: 0.5,
+      fill: 0xe8eef4, fillInt: 0.5,
+      rim: 0xe0f0ff, rimInt: 0.55,
+      ambient: 0xffffff, ambientInt: 0.28,
+      sun: 0xfff8f0, sunInt: 2.7,
+    },
+    env: {
+      zenith: '#ffffff', sky: '#e4f0f8', haze: '#d8dce4',
+      near: '#b8bcc4', bounce: '#9098a0',
+    },
+    plateau: 'Institutional white', shore: 'Pastel blue', plaza: 'Pastel blue',
+    plazaTex: 'pave',
+    seaFloor: 'Pastel blue', seaWater: 0x8ec8e0,
+    groundTex: 'pave', landmark: 'courtyard', landmarkPad: 'Institutional white',
+    trees: { palm: false, density: 0.3, flowers: true },
+    isles: {
+      sand: 'Pastel blue', mid: 'Institutional white',
+      grass: 'Institutional white', top: 'Bright red',
+    },
+    obby: {
+      lobby: 'Institutional white',
+      rim: ['Bright red', 'Pastel blue', 'Institutional white'],
+      arch: 'Bright red', sides: 'lamps', finish: 'Institutional white',
+    },
+  },
+
+  ruins: {
+    id: 'ruins', name: 'Old Times',
+    sky: {
+      zenith: '#6a4a28', mid: '#c48840', haze: '#e8c070',
+      horizon: '#f4dcb0', belowHaze: '#e0c898', below: '#c8a870',
+      background: 0xc49850, fog: 0xe0c890, clouds: 0.35,
+    },
+    lights: {
+      hemiSky: 0xffe8c0, hemiGround: 0x8a6030, hemiInt: 0.4,
+      fill: 0xe8c890, fillInt: 0.4,
+      rim: 0xffd890, rimInt: 0.45,
+      ambient: 0xffe8c8, ambientInt: 0.22,
+      sun: 0xffd080, sunInt: 2.6,
+    },
+    env: {
+      zenith: '#fff0d0', sky: '#f0d8a8', haze: '#d8b878',
+      near: '#b89050', bounce: '#8a6030',
+    },
+    plateau: 'Cool yellow', shore: 'Reddish brown', plaza: 'Reddish brown',
+    plazaTex: null,
+    seaFloor: 'Sand blue', seaWater: 0x7a9aaa,
+    groundTex: null, landmark: 'columns', landmarkPad: 'Cool yellow',
+    trees: { palm: true, density: 0.4, flowers: false },
+    isles: {
+      sand: 'Cool yellow', mid: 'Reddish brown',
+      grass: 'Cool yellow', top: 'Institutional white',
+    },
+    obby: {
+      lobby: 'Reddish brown',
+      rim: ['Cool yellow', 'Dark stone grey', 'Bright yellow'],
+      arch: 'Cool yellow', sides: 'columns', finish: 'Bright yellow',
+    },
+  },
+
+  travel: {
+    id: 'travel', name: 'World Plaza',
+    sky: {
+      zenith: '#1a58a0', mid: '#4a90c8', haze: '#98c0d8',
+      horizon: '#d8e8f0', belowHaze: '#c0d4e0', below: '#98b0c0',
+      background: 0x68a8c8, fog: 0xc8dce8, clouds: 0.8,
+    },
+    lights: {
+      hemiSky: 0xd8e8f4, hemiGround: 0x807860, hemiInt: 0.44,
+      fill: 0xd0dce8, fillInt: 0.44,
+      rim: 0xc8dcf0, rimInt: 0.58,
+      ambient: 0xf0f0e8, ambientInt: 0.22,
+      sun: 0xffeec2, sunInt: 2.85,
+    },
+    env: {
+      zenith: '#e8f0f8', sky: '#c8dce8', haze: '#c0c8b0',
+      near: '#909888', bounce: '#6a6860',
+    },
+    plateau: 'Br. yellowish green', shore: 'Medium stone grey', plaza: 'Medium stone grey',
+    plazaTex: 'pave',
+    seaFloor: 'Sand blue', seaWater: 0x2ea6dd,
+    groundTex: 'pave', landmark: 'flags', landmarkPad: 'Medium stone grey',
+    trees: { palm: false, density: 0.5, flowers: false },
+    isles: {
+      sand: 'Medium stone grey', mid: 'Bright blue',
+      grass: 'Br. yellowish green', top: 'Institutional white',
+    },
+    obby: {
+      lobby: 'Medium stone grey',
+      rim: ['Bright blue', 'Bright red', 'Bright yellow'],
+      arch: 'Bright blue', sides: 'flags', finish: 'Bright yellow',
+    },
+  },
+};
+
+function worldForPack(pack) {
+  if (!pack || !pack.world) return WORLDS[DEFAULT_WORLD_ID];
+  return WORLDS[pack.world] || WORLDS[DEFAULT_WORLD_ID];
 }
 
 // ===== js/questions.js =====
@@ -6862,6 +7435,7 @@ class Course {
     this.year = year;
     this.hooks = hooks;               // { onCorrect, onWrong, onCheckpoint, onFinish, onCoin, onWordCoin }
     this.questions = new QuestionSet(pack, year);
+    this.worldLook = worldForPack(pack);
     this.stages = [];
     this.checkpoints = [];
     this.billboards = [];        // turned toward the camera every frame
@@ -6880,6 +7454,7 @@ class Course {
 
     this.buildFinish(plan.length);
     this.buildLava(plan.length);
+    this.dressSides(plan.length);
     this.setFocus(0);
     return this;
   }
@@ -6887,9 +7462,10 @@ class Course {
   buildLobby() {
     const g = this.world.group('lobby');
     this.lobbyGroup = g;
+    const look = this.worldLook.obby;
 
     // The plaza. Roblox spawn areas are a big flat slab you cannot fall off.
-    platform(this.world, 0, 1, LOBBY_Z, 46, 46, bc('Medium stone grey'), { parent: g, h: 2 });
+    platform(this.world, 0, 1, LOBBY_Z, 46, 46, bc(look.lobby), { parent: g, h: 2 });
 
     // A rim of colour, so the lobby reads as "safe" at a glance. The +Z side is
     // left open: that is the way out through the arch, and a lip there is a
@@ -6897,7 +7473,7 @@ class Course {
     [[0, -23], [-23, 0], [23, 0]].forEach(([dx, dz], i) => {
       const horiz = dx === 0;
       platform(this.world, dx, 2, LOBBY_Z + dz, horiz ? 46 : 2, horiz ? 2 : 46,
-        bc(STAGE_COLOURS[i]), { parent: g });
+        bc(look.rim[i] || STAGE_COLOURS[i]), { parent: g });
     });
 
     // The spawn pad you appear on when the place loads.
@@ -6906,10 +7482,10 @@ class Course {
     this.spawn.set(0, 1, LOBBY_Z - 8);
     this.checkpoints.push({ stage: 0, x: 0, y: 1, z: LOBBY_Z - 8 });
 
-    startArch(this.world, 0, 1, LOBBY_Z + 22, g);
+    startArch(this.world, 0, 1, LOBBY_Z + 22, g, { colour: bc(look.arch) });
 
     // The sign over the arch tells the class what they are about to play.
-    const tex = boardFace(this.pack.name, `${this.year.label} · ${this.pack.blurb}`, { border: '#f5b81d' });
+    const tex = boardFace(this.pack.name, `${this.year.label} · ${this.worldLook.name}`, { border: '#f5b81d' });
     signBoard(this.world, 0, 17.5, LOBBY_Z + 22, tex, 16, 5, g, { post: false });
 
     // A short bridge from the edge of the plaza to the edge of stage 1's
@@ -6918,7 +7494,7 @@ class Course {
     const bridgeFrom = LOBBY_Z + 23;                 // the plaza's far edge
     const bridgeTo = FIRST_Z - PLAT_D / 2;           // stage 1's near edge
     platform(this.world, 0, FLOOR_Y, (bridgeFrom + bridgeTo) / 2,
-      10, bridgeTo - bridgeFrom, bc('Medium stone grey'), { parent: g });
+      10, bridgeTo - bridgeFrom, bc(look.lobby), { parent: g });
   }
 
   stageZ(i) { return FIRST_Z + i * STRIDE; }
@@ -7027,7 +7603,7 @@ class Course {
     this.finishZ = z;
     this.finishY = y;
 
-    platform(this.world, 0, y, z, 30, 26, bc('Bright yellow'), { parent: g });
+    platform(this.world, 0, y, z, 30, 26, bc(this.worldLook.obby.finish), { parent: g });
     podium(this.world, 0, y, z + 4, g);
 
     const tex = boardFace('FINISH!', `${this.pack.name} · ${this.year.label}`, { border: '#34b24a' });
@@ -7070,6 +7646,50 @@ class Course {
     const zStart = LOBBY_Z - 90;
     const zEnd = this.stageZ(stageCount) + 70;
     lavaPool(this.world, 0, LAVA_Y, (zStart + zEnd) / 2, 62, zEnd - zStart, g);
+  }
+
+  // Scenery out beside the corridor, never between a launch pad and its answers.
+  // |x| ≈ 32 is well outside the widest Year 4 platform.
+  dressSides(stageCount) {
+    const g = this.world.group('sides');
+    const kind = this.worldLook.obby.sides;
+    for (let i = 0; i < stageCount; i += 2) {
+      const z = this.stageZ(i);
+      const y = this.stageY(i);
+      this.placeSide(kind, -32, y, z - 2, g);
+      this.placeSide(kind, 32, y, z + 4, g);
+    }
+  }
+
+  placeSide(kind, x, y, z, g) {
+    if (kind === 'palms') {
+      treeProp(this.world, x, y, z, g, { palm: true, height: 9, solid: false });
+      return;
+    }
+    if (kind === 'balloons') {
+      balloonBunch(this.world, x, y, z, g, { count: 4 });
+      return;
+    }
+    if (kind === 'flags') {
+      const hues = ['Bright red', 'Bright blue', 'Bright yellow', 'Bright green'];
+      flagPole(this.world, x, z, g, {
+        y, colour: bc(hues[Math.abs(Math.round(z / 10)) % hues.length]), height: 12,
+      });
+      return;
+    }
+    if (kind === 'posts') {
+      sidePost(this.world, x, y, z, g, { height: 10, colour: bc('Institutional white') });
+      return;
+    }
+    if (kind === 'lamps') {
+      lampPost(this.world, x, y, z, g);
+      return;
+    }
+    if (kind === 'columns') {
+      stoneColumn(this.world, x, z, g, { y, height: 10 });
+      return;
+    }
+    treeProp(this.world, x, y, z, g, { height: 7, solid: false });
   }
 
   // ---------------------------------------------------------------- playing
@@ -7521,6 +8141,7 @@ class Island {
     this.year = year;
     this.hooks = hooks;   // { onHunt, onHit, onMiss, onDiscover, onFinish, onChat }
     this.quests = new QuestSet(this.packs, home, year);
+    this.worldLook = worldForPack(home);
 
     this.districts = [];
     this.standList = [];
@@ -7544,28 +8165,39 @@ class Island {
   build() {
     const g = this.world.group('island');
     this.root = g;
+    const look = this.worldLook;
 
-    seaPlane(this.world, ISLE_SEA_Y, ISLE_SEA_SPAN, g);
-    plateau(this.world, ISLE_SPAN, ISLE_DEEP, bc('Bright green'), g);
+    seaPlane(this.world, ISLE_SEA_Y, ISLE_SEA_SPAN, g, {
+      floor: bc(look.seaFloor), water: look.seaWater,
+    });
+    const groundOpts = look.groundTex === 'grass'
+      ? { tex: grassTexture(), texScale: 8 }
+      : look.groundTex === 'pave'
+        ? { tex: pavingTexture(), texScale: 8 }
+        : {};
+    plateau(this.world, ISLE_SPAN, ISLE_DEEP, bc(look.plateau), g, groundOpts);
 
     // Hills out in the sea. Without them the horizon is an empty blue line and
     // the island reads as a model on a table rather than as somewhere.
-    distantIsles(this.world, g);
+    distantIsles(this.world, g, {
+      sand: bc(look.isles.sand), mid: bc(look.isles.mid),
+      grass: bc(look.isles.grass), top: bc(look.isles.top),
+    });
 
     // A ring of sand around the whole plateau, so the edge reads as a shore you
     // are allowed to walk off rather than a cliff you are not.
     const bw = 13;
     const edge = ISLE_SPAN / 2 - bw / 2;
-    pathStrip(this.world, 0, 0, edge, ISLE_SPAN, bw, bc('Cool yellow'), g);
-    pathStrip(this.world, 0, 0, -edge, ISLE_SPAN, bw, bc('Cool yellow'), g);
-    pathStrip(this.world, edge, 0, 0, bw, ISLE_SPAN - bw * 2, bc('Cool yellow'), g);
-    pathStrip(this.world, -edge, 0, 0, bw, ISLE_SPAN - bw * 2, bc('Cool yellow'), g);
+    pathStrip(this.world, 0, 0, edge, ISLE_SPAN, bw, bc(look.shore), g);
+    pathStrip(this.world, 0, 0, -edge, ISLE_SPAN, bw, bc(look.shore), g);
+    pathStrip(this.world, edge, 0, 0, bw, ISLE_SPAN - bw * 2, bc(look.shore), g);
+    pathStrip(this.world, -edge, 0, 0, bw, ISLE_SPAN - bw * 2, bc(look.shore), g);
 
     // Districts first: the plaza's compass rose is painted with their names.
     this.packs.forEach((pack, i) => this.buildDistrict(i, pack, g));
     this.buildPlaza(g);
     this.scatterCoins(g);
-    this.buildFairground(g);
+    this.buildLandmark(look.landmark, g);
     climbTower(this.world, 58, 58, g, { rungs: 10, face: -1 });
     this.scatterTrees(g);
 
@@ -7579,9 +8211,14 @@ class Island {
   buildPlaza(g) {
     // Paved, not a flat grey slab. The plaza is the largest surface in almost
     // every frame of this mode.
-    const pave = pavingTexture();
-    pathStrip(this.world, 0, 0, 0, ISLE_PLAZA, ISLE_PLAZA, bc('Medium stone grey'), g,
-      { tex: pave });
+    const look = this.worldLook;
+    const plazaTex = look.plazaTex === 'grass' ? grassTexture()
+      : look.plazaTex === 'pave' ? pavingTexture()
+        : null;
+    const plazaOpts = plazaTex
+      ? { tex: plazaTex, texScale: look.plazaTex === 'grass' ? 8 : 4 }
+      : {};
+    pathStrip(this.world, 0, 0, 0, ISLE_PLAZA, ISLE_PLAZA, bc(look.plaza), g, plazaOpts);
 
     // The fountain is off the crossroads on purpose, and out of line with the
     // spawn pad as well. In the middle it looks right and plays wrong: all four
@@ -7636,7 +8273,7 @@ class Island {
 
     // Small, and off to one side. At eighteen studs over the spawn pad this was
     // the first thing every screenshot of the game had in it.
-    const tex = boardFace('BrickWords Island', `${this.year.label} — run and find the words!`, { border: '#f5b81d' });
+    const tex = boardFace(this.worldLook.name, `${this.year.label} — run and find the words!`, { border: '#f5b81d' });
     signBoard(this.world, -20, 6.5, -20, tex, 11, 3.4, g, { post: true });
 
     // Four streets out of the plaza, one per district, stopping at the gates.
@@ -7646,7 +8283,7 @@ class Island {
       const mid = (from + to) / 2;
       const len = to - from;
       pathStrip(this.world, d.x * mid, 0, d.z * mid,
-        d.x ? len : 14, d.x ? 14 : len, bc('Medium stone grey'), g, { tex: pave });
+        d.x ? len : 14, d.x ? 14 : len, bc(look.plaza), g, plazaOpts);
       // A lamp on each side of every street mouth. Eight lamps is what the
       // reference's plaza is mostly made of, and they cost four parts each.
       [-1, 1].forEach((k) => {
@@ -7671,12 +8308,16 @@ class Island {
       flowerBed(this.world, sx * corner, 0, sz * corner, g, { size: 6, count: 10 });
       if (i === 3) benchProp(this.world, sx * (corner - 2), 0, sz * (corner - 10), 0, g);
     });
-    balloonBunch(this.world, 22, 0, 9, g, { count: 6 });
+    if (look.id === 'town' || look.id === 'fair') {
+      balloonBunch(this.world, 22, 0, 9, g, { count: 6 });
+    }
 
     // A livelier welcome around the START pad, the first thing every player
     // sees. Kept off the four street mouths so none of it blocks the way out.
-    balloonBunch(this.world, 13, 0, -20, g, { count: 5 });
-    balloonBunch(this.world, -13, 0, -20, g, { count: 5 });
+    if (look.id === 'town' || look.id === 'fair') {
+      balloonBunch(this.world, 13, 0, -20, g, { count: 5 });
+      balloonBunch(this.world, -13, 0, -20, g, { count: 5 });
+    }
     benchProp(this.world, 15, 0, -14, -Math.PI / 2, g);
     benchProp(this.world, -15, 0, -14, Math.PI / 2, g);
     flowerBed(this.world, 17, 0, -21, g, { size: 4, count: 8 });
@@ -7841,12 +8482,7 @@ class Island {
   // The one prop that says what sort of place this is.
   themeProp(kind, x, z, theme, g) {
     if (kind === 'flag') {
-      const pole = part(0.8, 18, 0.8, bc('Institutional white'), { studs: false, castShadow: false });
-      pole.position.set(x, 9, z);
-      g.add(pole);
-      const flag = part(7, 4, 0.3, bc('Bright red'), { studs: false });
-      flag.position.set(x + 3.9, 15, z);
-      g.add(flag);
+      flagPole(this.world, x, z, g, { colour: bc('Bright red') });
       return;
     }
     if (kind === 'kennel') {
@@ -7857,24 +8493,11 @@ class Island {
       return;
     }
     if (kind === 'table') {
-      const top = part(9, 0.8, 5, bc('Reddish brown'), { repeat: [9, 5] });
-      this.world.place(top, x, 3.6, z, { parent: g });
-      [-3.5, 3.5].forEach((dx) => {
-        const leg = part(0.8, 3.2, 0.8, bc('Dark stone grey'), { studs: false, castShadow: false });
-        leg.position.set(x + dx, 1.6, z);
-        g.add(leg);
-      });
+      picnicTable(this.world, x, z, g);
       return;
     }
     if (kind === 'goal') {
-      [-6, 6].forEach((dx) => {
-        const post = part(0.8, 9, 0.8, bc('Institutional white'), { studs: false, castShadow: false });
-        post.position.set(x + dx, 4.5, z);
-        g.add(post);
-      });
-      const bar = part(12.8, 0.8, 0.8, bc('Institutional white'), { studs: false, castShadow: false });
-      bar.position.set(x, 9, z);
-      g.add(bar);
+      goalPosts(this.world, x, z, g);
       return;
     }
     treeProp(this.world, x, 0, z, g, { palm: kind === 'palm', height: kind === 'palm' ? 10 : 7 });
@@ -7882,18 +8505,124 @@ class Island {
 
   // ------------------------------------------------------------- decoration
 
+  buildLandmark(kind, g) {
+    const pad = bc(this.worldLook.landmarkPad);
+    if (kind === 'pier') {
+      pathStrip(this.world, -58, 0, 58, 40, 40, pad, g);
+      pierDeck(this.world, -58, 58, g);
+      treeProp(this.world, -72, 0, 50, g, { palm: true, height: 11 });
+      treeProp(this.world, -46, 0, 70, g, { palm: true, height: 9 });
+      pathStrip(this.world, 58, 0, -58, 42, 42, bc(this.worldLook.shore), g);
+      treeProp(this.world, 48, 0, -48, g, { palm: true, height: 10 });
+      treeProp(this.world, 70, 0, -70, g, { palm: true, height: 12 });
+      treeProp(this.world, 68, 0, -46, g, { palm: true, height: 8 });
+      flowerBed(this.world, 74, 0, -44, g, { size: 6 });
+      return;
+    }
+    if (kind === 'grove') {
+      pathStrip(this.world, -58, 0, 58, 36, 36, pad, g);
+      for (let i = 0; i < 9; i++) {
+        const a = (i / 9) * Math.PI * 2;
+        treeProp(this.world, -58 + Math.cos(a) * 12, 0, 58 + Math.sin(a) * 12, g, {
+          palm: i % 2 === 0, height: 7 + (i % 4), spin: a,
+        });
+      }
+      pathStrip(this.world, 58, 0, -58, 36, 36, pad, g);
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 + 0.3;
+        treeProp(this.world, 58 + Math.cos(a) * 11, 0, -58 + Math.sin(a) * 11, g, {
+          palm: true, height: 8 + (i % 3),
+        });
+      }
+      return;
+    }
+    if (kind === 'pitch') {
+      pathStrip(this.world, -58, 0, 58, 40, 40, pad, g);
+      pathStrip(this.world, -58, 0, 58, 28, 0.8, bc('Institutional white'), g, { lift: 0.08 });
+      pathStrip(this.world, -58, 0, 58, 0.8, 28, bc('Institutional white'), g, { lift: 0.1 });
+      goalPosts(this.world, -58, 58 - 14, g);
+      goalPosts(this.world, -58, 58 + 14, g, { yaw: Math.PI });
+      pathStrip(this.world, 58, 0, -58, 36, 36, pad, g);
+      goalPosts(this.world, 58, -58, g, { yaw: Math.PI / 2 });
+      benchProp(this.world, 44, 0, -44, Math.PI, g);
+      return;
+    }
+    if (kind === 'campus') {
+      pathStrip(this.world, -58, 0, 58, 40, 40, pad, g);
+      flagPole(this.world, -64, 52, g, { colour: bc('Bright red'), height: 18 });
+      flagPole(this.world, -52, 64, g, { colour: bc('Bright blue'), height: 16 });
+      benchProp(this.world, -46, 0, 58, Math.PI / 2, g);
+      flowerBed(this.world, -70, 0, 46, g, { size: 5 });
+      pathStrip(this.world, 58, 0, -58, 42, 42, pad, g);
+      flagPole(this.world, 58, -58, g, { colour: bc('Bright yellow'), height: 20 });
+      benchProp(this.world, 58, 0, -40, Math.PI, g);
+      flowerBed(this.world, 74, 0, -44, g, { size: 6 });
+      return;
+    }
+    if (kind === 'market') {
+      pathStrip(this.world, -58, 0, 58, 40, 40, pad, g);
+      marketStall(this.world, -64, 52, g, { cloth: bc('Bright red') });
+      marketStall(this.world, -50, 64, g, { yaw: Math.PI / 2, cloth: bc('Bright yellow') });
+      picnicTable(this.world, -46, 48, g);
+      pathStrip(this.world, 58, 0, -58, 42, 42, pad, g);
+      marketStall(this.world, 50, -50, g, { cloth: bc('Bright green') });
+      picnicTable(this.world, 68, -64, g);
+      lampPost(this.world, 44, 0, -44, g);
+      return;
+    }
+    if (kind === 'courtyard') {
+      pathStrip(this.world, -58, 0, 58, 40, 40, pad, g, { tex: pavingTexture(), texScale: 5 });
+      benchProp(this.world, -46, 0, 58, Math.PI / 2, g);
+      benchProp(this.world, -70, 0, 58, -Math.PI / 2, g);
+      lampPost(this.world, -44, 0, 44, g);
+      flowerBed(this.world, -70, 0, 46, g, { size: 5 });
+      pathStrip(this.world, 58, 0, -58, 42, 42, pad, g, { tex: pavingTexture(), texScale: 5 });
+      benchProp(this.world, 58, 0, -40, Math.PI, g);
+      lampPost(this.world, 44, 0, -44, g);
+      flowerBed(this.world, 74, 0, -44, g, { size: 6 });
+      return;
+    }
+    if (kind === 'columns') {
+      pathStrip(this.world, -58, 0, 58, 40, 40, pad, g);
+      [-8, 0, 8].forEach((dx) => stoneColumn(this.world, -58 + dx, 58, g, { height: 12 + Math.abs(dx) }));
+      pathStrip(this.world, 58, 0, -58, 42, 42, pad, g);
+      [-10, 10].forEach((dx) => stoneColumn(this.world, 58 + dx, -58, g, { height: 16 }));
+      return;
+    }
+    if (kind === 'flags') {
+      pathStrip(this.world, -58, 0, 58, 40, 40, pad, g, { tex: pavingTexture() });
+      const hues = ['Bright red', 'Bright blue', 'Bright yellow', 'Bright green', 'Hot pink'];
+      hues.forEach((name, i) => {
+        const a = (i / hues.length) * Math.PI * 2;
+        flagPole(this.world, -58 + Math.cos(a) * 12, 58 + Math.sin(a) * 12, g, {
+          colour: bc(name), height: 14 + i,
+        });
+      });
+      pathStrip(this.world, 58, 0, -58, 42, 42, pad, g, { tex: pavingTexture() });
+      flagPole(this.world, 58, -58, g, { colour: bc('Bright blue'), height: 20 });
+      lampPost(this.world, 44, 0, -44, g);
+      return;
+    }
+    this.buildFairground(g);
+  }
+
   // Panel 10 of the reference: the things that move. Both sit on the open green
   // between two streets, far enough out that they are somewhere to go and never
   // in the way of a word. Neither is solid — a spinning wheel that could shove a
   // pupil off their feet would break the island's one rule.
   buildFairground(g) {
-    pathStrip(this.world, -58, 0, 58, 40, 40, bc('Br. yellowish green'), g);
+    const pad = bc(this.worldLook.landmarkPad);
+    pathStrip(this.world, -58, 0, 58, 40, 40, pad, g);
     ferrisWheel(this.world, -58, 0, 58, g, { radius: 13, cars: 8 });
     lampPost(this.world, -44, 0, 44, g);
     benchProp(this.world, -46, 0, 58, Math.PI / 2, g);
     balloonBunch(this.world, -70, 0, 46, g, { count: 5 });
+    if (this.worldLook.id === 'fair') {
+      balloonBunch(this.world, -48, 0, 70, g, { count: 6 });
+      balloonBunch(this.world, -70, 0, 70, g, { count: 4 });
+    }
 
-    pathStrip(this.world, 58, 0, -58, 42, 42, bc('Br. yellowish green'), g);
+    pathStrip(this.world, 58, 0, -58, 42, 42, pad, g);
     trainRide(this.world, 58, 0, -58, g, { radius: 15 });
     lampPost(this.world, 44, 0, -44, g);
     benchProp(this.world, 58, 0, -40, Math.PI, g);
@@ -7921,8 +8650,11 @@ class Island {
   scatterTrees(g) {
     // The quiet corners between the streets. Anything near the plaza, a street
     // or a district would be something to run into, so those areas are skipped.
+    const trees = this.worldLook.trees || {};
+    const target = Math.round(64 * (trees.density || 1));
+    const wantPalm = !!trees.palm;
     let placed = 0;
-    for (let tries = 0; tries < 520 && placed < 64; tries++) {
+    for (let tries = 0; tries < Math.max(520, target * 9) && placed < target; tries++) {
       const x = rand(-95, 95);
       const z = rand(-95, 95);
       if (Math.abs(x) < 12 || Math.abs(z) < 12) continue;              // the streets
@@ -7936,13 +8668,15 @@ class Island {
         return along < 40 && across < 27;
       });
       if (near) continue;
-      // The two fairground plots, which are laid down before the trees are
+      // The two landmark plots, which are laid down before the trees are
       // scattered. Without this a copse grows inside the train's loop.
       if (Math.hypot(x + 58, z - 58) < 26) continue;
       if (Math.hypot(x - 58, z + 58) < 28) continue;
       if (Math.hypot(x - 58, z - 58) < 30) continue;   // the climb tower plot
+      const palm = wantPalm && (trees.density > 1 ? Math.random() < 0.5 : true);
       treeProp(this.world, x, 0, z, g, {
-        height: randInt(5, 9),
+        palm,
+        height: palm ? randInt(8, 12) : randInt(5, 9),
         spin: rand(0, Math.PI / 2),
         leaf: bc(Math.random() < 0.25 ? 'Br. yellowish green' : 'Bright green'),
       });
@@ -7952,7 +8686,7 @@ class Island {
       for (let b = 0, clumps = randInt(1, 2); b < clumps; b++) {
         bushProp(this.world, x + rand(-4.5, 4.5), 0, z + rand(-4.5, 4.5), g, { size: rand(1.8, 3.2) });
       }
-      if (Math.random() < 0.22) {
+      if (trees.flowers !== false && Math.random() < 0.22) {
         flowerBed(this.world, x + rand(-6, 6), 0, z + rand(-6, 6), g, { size: rand(3, 4.5), count: randInt(6, 9) });
       }
     }
@@ -9292,6 +10026,7 @@ function startGame() {
   course = null;
 
   world = new PartWorld(scene);
+  applyWorldLook(scene, renderer, worldForPack(pack));
 
   if (isle) {
     island = new Island(world, scene, districtPacks(state.yearId, pack), pack, year, {
@@ -10113,6 +10848,7 @@ function debugApi() {
         "RBX.mode('explore')     choose the game ('obby' or 'explore')",
         'RBX.setYear(4)          choose the class (1, 2 or 4)',
         "RBX.setPack('past')     choose the word pack, then RBX.play()",
+        'RBX.biome()             the pack world (town, beach, stadium…)',
         'RBX.play()              build and start the chosen game',
         'RBX.stage(7)            teleport to the launch platform of stage 7',
         'RBX.answer(true)        jump onto the right (or wrong) brick',
@@ -10139,6 +10875,10 @@ function debugApi() {
     },
     setYear(id) { state.yearId = Number(id); refreshPickers(); return yearById(id).label; },
     setPack(id) { if (packById(id)) state.packId = id; return state.packId; },
+    biome() {
+      const look = (island && island.worldLook) || (course && course.worldLook);
+      return look ? { id: look.id, name: look.name, landmark: look.landmark } : null;
+    },
     play() { startGame(); },
     tp(x, y, z) { humanoid.teleport(x, y, z); },
     give(n) { state.coins += n; UI.setStats({ coins: state.coins }); save(); return state.coins; },

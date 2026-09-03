@@ -37,8 +37,11 @@ import {
   wordStand, questBeam, answerFlag, coin, signBoard, boardFace, topDecal,
   decalPlane, canvasTexture, UI_FONT, EMOJI_FONT,
   shopFront, lampPost, hedgeRow, flowerBed, benchProp, balloonBunch,
-  ferrisWheel, trainRide, signLetters, pavingTexture, distantIsles, bushProp, climbTower,
+  ferrisWheel, trainRide, signLetters, pavingTexture, grassTexture, distantIsles,
+  bushProp, climbTower, flagPole, goalPosts, picnicTable, stoneColumn,
+  marketStall, pierDeck,
 } from './parts.js';
+import { worldForPack } from './worlds.js';
 import { QuestSet } from './quests.js';
 import { Guide } from './npc.js';
 
@@ -119,6 +122,7 @@ export class Island {
     this.year = year;
     this.hooks = hooks;   // { onHunt, onHit, onMiss, onDiscover, onFinish, onChat }
     this.quests = new QuestSet(this.packs, home, year);
+    this.worldLook = worldForPack(home);
 
     this.districts = [];
     this.standList = [];
@@ -142,28 +146,39 @@ export class Island {
   build() {
     const g = this.world.group('island');
     this.root = g;
+    const look = this.worldLook;
 
-    seaPlane(this.world, ISLE_SEA_Y, ISLE_SEA_SPAN, g);
-    plateau(this.world, ISLE_SPAN, ISLE_DEEP, bc('Bright green'), g);
+    seaPlane(this.world, ISLE_SEA_Y, ISLE_SEA_SPAN, g, {
+      floor: bc(look.seaFloor), water: look.seaWater,
+    });
+    const groundOpts = look.groundTex === 'grass'
+      ? { tex: grassTexture(), texScale: 8 }
+      : look.groundTex === 'pave'
+        ? { tex: pavingTexture(), texScale: 8 }
+        : {};
+    plateau(this.world, ISLE_SPAN, ISLE_DEEP, bc(look.plateau), g, groundOpts);
 
     // Hills out in the sea. Without them the horizon is an empty blue line and
     // the island reads as a model on a table rather than as somewhere.
-    distantIsles(this.world, g);
+    distantIsles(this.world, g, {
+      sand: bc(look.isles.sand), mid: bc(look.isles.mid),
+      grass: bc(look.isles.grass), top: bc(look.isles.top),
+    });
 
     // A ring of sand around the whole plateau, so the edge reads as a shore you
     // are allowed to walk off rather than a cliff you are not.
     const bw = 13;
     const edge = ISLE_SPAN / 2 - bw / 2;
-    pathStrip(this.world, 0, 0, edge, ISLE_SPAN, bw, bc('Cool yellow'), g);
-    pathStrip(this.world, 0, 0, -edge, ISLE_SPAN, bw, bc('Cool yellow'), g);
-    pathStrip(this.world, edge, 0, 0, bw, ISLE_SPAN - bw * 2, bc('Cool yellow'), g);
-    pathStrip(this.world, -edge, 0, 0, bw, ISLE_SPAN - bw * 2, bc('Cool yellow'), g);
+    pathStrip(this.world, 0, 0, edge, ISLE_SPAN, bw, bc(look.shore), g);
+    pathStrip(this.world, 0, 0, -edge, ISLE_SPAN, bw, bc(look.shore), g);
+    pathStrip(this.world, edge, 0, 0, bw, ISLE_SPAN - bw * 2, bc(look.shore), g);
+    pathStrip(this.world, -edge, 0, 0, bw, ISLE_SPAN - bw * 2, bc(look.shore), g);
 
     // Districts first: the plaza's compass rose is painted with their names.
     this.packs.forEach((pack, i) => this.buildDistrict(i, pack, g));
     this.buildPlaza(g);
     this.scatterCoins(g);
-    this.buildFairground(g);
+    this.buildLandmark(look.landmark, g);
     climbTower(this.world, 58, 58, g, { rungs: 10, face: -1 });
     this.scatterTrees(g);
 
@@ -177,9 +192,14 @@ export class Island {
   buildPlaza(g) {
     // Paved, not a flat grey slab. The plaza is the largest surface in almost
     // every frame of this mode.
-    const pave = pavingTexture();
-    pathStrip(this.world, 0, 0, 0, ISLE_PLAZA, ISLE_PLAZA, bc('Medium stone grey'), g,
-      { tex: pave });
+    const look = this.worldLook;
+    const plazaTex = look.plazaTex === 'grass' ? grassTexture()
+      : look.plazaTex === 'pave' ? pavingTexture()
+        : null;
+    const plazaOpts = plazaTex
+      ? { tex: plazaTex, texScale: look.plazaTex === 'grass' ? 8 : 4 }
+      : {};
+    pathStrip(this.world, 0, 0, 0, ISLE_PLAZA, ISLE_PLAZA, bc(look.plaza), g, plazaOpts);
 
     // The fountain is off the crossroads on purpose, and out of line with the
     // spawn pad as well. In the middle it looks right and plays wrong: all four
@@ -234,7 +254,7 @@ export class Island {
 
     // Small, and off to one side. At eighteen studs over the spawn pad this was
     // the first thing every screenshot of the game had in it.
-    const tex = boardFace('BrickWords Island', `${this.year.label} — run and find the words!`, { border: '#f5b81d' });
+    const tex = boardFace(this.worldLook.name, `${this.year.label} — run and find the words!`, { border: '#f5b81d' });
     signBoard(this.world, -20, 6.5, -20, tex, 11, 3.4, g, { post: true });
 
     // Four streets out of the plaza, one per district, stopping at the gates.
@@ -244,7 +264,7 @@ export class Island {
       const mid = (from + to) / 2;
       const len = to - from;
       pathStrip(this.world, d.x * mid, 0, d.z * mid,
-        d.x ? len : 14, d.x ? 14 : len, bc('Medium stone grey'), g, { tex: pave });
+        d.x ? len : 14, d.x ? 14 : len, bc(look.plaza), g, plazaOpts);
       // A lamp on each side of every street mouth. Eight lamps is what the
       // reference's plaza is mostly made of, and they cost four parts each.
       [-1, 1].forEach((k) => {
@@ -269,12 +289,16 @@ export class Island {
       flowerBed(this.world, sx * corner, 0, sz * corner, g, { size: 6, count: 10 });
       if (i === 3) benchProp(this.world, sx * (corner - 2), 0, sz * (corner - 10), 0, g);
     });
-    balloonBunch(this.world, 22, 0, 9, g, { count: 6 });
+    if (look.id === 'town' || look.id === 'fair') {
+      balloonBunch(this.world, 22, 0, 9, g, { count: 6 });
+    }
 
     // A livelier welcome around the START pad, the first thing every player
     // sees. Kept off the four street mouths so none of it blocks the way out.
-    balloonBunch(this.world, 13, 0, -20, g, { count: 5 });
-    balloonBunch(this.world, -13, 0, -20, g, { count: 5 });
+    if (look.id === 'town' || look.id === 'fair') {
+      balloonBunch(this.world, 13, 0, -20, g, { count: 5 });
+      balloonBunch(this.world, -13, 0, -20, g, { count: 5 });
+    }
     benchProp(this.world, 15, 0, -14, -Math.PI / 2, g);
     benchProp(this.world, -15, 0, -14, Math.PI / 2, g);
     flowerBed(this.world, 17, 0, -21, g, { size: 4, count: 8 });
@@ -439,12 +463,7 @@ export class Island {
   // The one prop that says what sort of place this is.
   themeProp(kind, x, z, theme, g) {
     if (kind === 'flag') {
-      const pole = part(0.8, 18, 0.8, bc('Institutional white'), { studs: false, castShadow: false });
-      pole.position.set(x, 9, z);
-      g.add(pole);
-      const flag = part(7, 4, 0.3, bc('Bright red'), { studs: false });
-      flag.position.set(x + 3.9, 15, z);
-      g.add(flag);
+      flagPole(this.world, x, z, g, { colour: bc('Bright red') });
       return;
     }
     if (kind === 'kennel') {
@@ -455,24 +474,11 @@ export class Island {
       return;
     }
     if (kind === 'table') {
-      const top = part(9, 0.8, 5, bc('Reddish brown'), { repeat: [9, 5] });
-      this.world.place(top, x, 3.6, z, { parent: g });
-      [-3.5, 3.5].forEach((dx) => {
-        const leg = part(0.8, 3.2, 0.8, bc('Dark stone grey'), { studs: false, castShadow: false });
-        leg.position.set(x + dx, 1.6, z);
-        g.add(leg);
-      });
+      picnicTable(this.world, x, z, g);
       return;
     }
     if (kind === 'goal') {
-      [-6, 6].forEach((dx) => {
-        const post = part(0.8, 9, 0.8, bc('Institutional white'), { studs: false, castShadow: false });
-        post.position.set(x + dx, 4.5, z);
-        g.add(post);
-      });
-      const bar = part(12.8, 0.8, 0.8, bc('Institutional white'), { studs: false, castShadow: false });
-      bar.position.set(x, 9, z);
-      g.add(bar);
+      goalPosts(this.world, x, z, g);
       return;
     }
     treeProp(this.world, x, 0, z, g, { palm: kind === 'palm', height: kind === 'palm' ? 10 : 7 });
@@ -480,18 +486,124 @@ export class Island {
 
   // ------------------------------------------------------------- decoration
 
+  buildLandmark(kind, g) {
+    const pad = bc(this.worldLook.landmarkPad);
+    if (kind === 'pier') {
+      pathStrip(this.world, -58, 0, 58, 40, 40, pad, g);
+      pierDeck(this.world, -58, 58, g);
+      treeProp(this.world, -72, 0, 50, g, { palm: true, height: 11 });
+      treeProp(this.world, -46, 0, 70, g, { palm: true, height: 9 });
+      pathStrip(this.world, 58, 0, -58, 42, 42, bc(this.worldLook.shore), g);
+      treeProp(this.world, 48, 0, -48, g, { palm: true, height: 10 });
+      treeProp(this.world, 70, 0, -70, g, { palm: true, height: 12 });
+      treeProp(this.world, 68, 0, -46, g, { palm: true, height: 8 });
+      flowerBed(this.world, 74, 0, -44, g, { size: 6 });
+      return;
+    }
+    if (kind === 'grove') {
+      pathStrip(this.world, -58, 0, 58, 36, 36, pad, g);
+      for (let i = 0; i < 9; i++) {
+        const a = (i / 9) * Math.PI * 2;
+        treeProp(this.world, -58 + Math.cos(a) * 12, 0, 58 + Math.sin(a) * 12, g, {
+          palm: i % 2 === 0, height: 7 + (i % 4), spin: a,
+        });
+      }
+      pathStrip(this.world, 58, 0, -58, 36, 36, pad, g);
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 + 0.3;
+        treeProp(this.world, 58 + Math.cos(a) * 11, 0, -58 + Math.sin(a) * 11, g, {
+          palm: true, height: 8 + (i % 3),
+        });
+      }
+      return;
+    }
+    if (kind === 'pitch') {
+      pathStrip(this.world, -58, 0, 58, 40, 40, pad, g);
+      pathStrip(this.world, -58, 0, 58, 28, 0.8, bc('Institutional white'), g, { lift: 0.08 });
+      pathStrip(this.world, -58, 0, 58, 0.8, 28, bc('Institutional white'), g, { lift: 0.1 });
+      goalPosts(this.world, -58, 58 - 14, g);
+      goalPosts(this.world, -58, 58 + 14, g, { yaw: Math.PI });
+      pathStrip(this.world, 58, 0, -58, 36, 36, pad, g);
+      goalPosts(this.world, 58, -58, g, { yaw: Math.PI / 2 });
+      benchProp(this.world, 44, 0, -44, Math.PI, g);
+      return;
+    }
+    if (kind === 'campus') {
+      pathStrip(this.world, -58, 0, 58, 40, 40, pad, g);
+      flagPole(this.world, -64, 52, g, { colour: bc('Bright red'), height: 18 });
+      flagPole(this.world, -52, 64, g, { colour: bc('Bright blue'), height: 16 });
+      benchProp(this.world, -46, 0, 58, Math.PI / 2, g);
+      flowerBed(this.world, -70, 0, 46, g, { size: 5 });
+      pathStrip(this.world, 58, 0, -58, 42, 42, pad, g);
+      flagPole(this.world, 58, -58, g, { colour: bc('Bright yellow'), height: 20 });
+      benchProp(this.world, 58, 0, -40, Math.PI, g);
+      flowerBed(this.world, 74, 0, -44, g, { size: 6 });
+      return;
+    }
+    if (kind === 'market') {
+      pathStrip(this.world, -58, 0, 58, 40, 40, pad, g);
+      marketStall(this.world, -64, 52, g, { cloth: bc('Bright red') });
+      marketStall(this.world, -50, 64, g, { yaw: Math.PI / 2, cloth: bc('Bright yellow') });
+      picnicTable(this.world, -46, 48, g);
+      pathStrip(this.world, 58, 0, -58, 42, 42, pad, g);
+      marketStall(this.world, 50, -50, g, { cloth: bc('Bright green') });
+      picnicTable(this.world, 68, -64, g);
+      lampPost(this.world, 44, 0, -44, g);
+      return;
+    }
+    if (kind === 'courtyard') {
+      pathStrip(this.world, -58, 0, 58, 40, 40, pad, g, { tex: pavingTexture(), texScale: 5 });
+      benchProp(this.world, -46, 0, 58, Math.PI / 2, g);
+      benchProp(this.world, -70, 0, 58, -Math.PI / 2, g);
+      lampPost(this.world, -44, 0, 44, g);
+      flowerBed(this.world, -70, 0, 46, g, { size: 5 });
+      pathStrip(this.world, 58, 0, -58, 42, 42, pad, g, { tex: pavingTexture(), texScale: 5 });
+      benchProp(this.world, 58, 0, -40, Math.PI, g);
+      lampPost(this.world, 44, 0, -44, g);
+      flowerBed(this.world, 74, 0, -44, g, { size: 6 });
+      return;
+    }
+    if (kind === 'columns') {
+      pathStrip(this.world, -58, 0, 58, 40, 40, pad, g);
+      [-8, 0, 8].forEach((dx) => stoneColumn(this.world, -58 + dx, 58, g, { height: 12 + Math.abs(dx) }));
+      pathStrip(this.world, 58, 0, -58, 42, 42, pad, g);
+      [-10, 10].forEach((dx) => stoneColumn(this.world, 58 + dx, -58, g, { height: 16 }));
+      return;
+    }
+    if (kind === 'flags') {
+      pathStrip(this.world, -58, 0, 58, 40, 40, pad, g, { tex: pavingTexture() });
+      const hues = ['Bright red', 'Bright blue', 'Bright yellow', 'Bright green', 'Hot pink'];
+      hues.forEach((name, i) => {
+        const a = (i / hues.length) * Math.PI * 2;
+        flagPole(this.world, -58 + Math.cos(a) * 12, 58 + Math.sin(a) * 12, g, {
+          colour: bc(name), height: 14 + i,
+        });
+      });
+      pathStrip(this.world, 58, 0, -58, 42, 42, pad, g, { tex: pavingTexture() });
+      flagPole(this.world, 58, -58, g, { colour: bc('Bright blue'), height: 20 });
+      lampPost(this.world, 44, 0, -44, g);
+      return;
+    }
+    this.buildFairground(g);
+  }
+
   // Panel 10 of the reference: the things that move. Both sit on the open green
   // between two streets, far enough out that they are somewhere to go and never
   // in the way of a word. Neither is solid — a spinning wheel that could shove a
   // pupil off their feet would break the island's one rule.
   buildFairground(g) {
-    pathStrip(this.world, -58, 0, 58, 40, 40, bc('Br. yellowish green'), g);
+    const pad = bc(this.worldLook.landmarkPad);
+    pathStrip(this.world, -58, 0, 58, 40, 40, pad, g);
     ferrisWheel(this.world, -58, 0, 58, g, { radius: 13, cars: 8 });
     lampPost(this.world, -44, 0, 44, g);
     benchProp(this.world, -46, 0, 58, Math.PI / 2, g);
     balloonBunch(this.world, -70, 0, 46, g, { count: 5 });
+    if (this.worldLook.id === 'fair') {
+      balloonBunch(this.world, -48, 0, 70, g, { count: 6 });
+      balloonBunch(this.world, -70, 0, 70, g, { count: 4 });
+    }
 
-    pathStrip(this.world, 58, 0, -58, 42, 42, bc('Br. yellowish green'), g);
+    pathStrip(this.world, 58, 0, -58, 42, 42, pad, g);
     trainRide(this.world, 58, 0, -58, g, { radius: 15 });
     lampPost(this.world, 44, 0, -44, g);
     benchProp(this.world, 58, 0, -40, Math.PI, g);
@@ -519,8 +631,11 @@ export class Island {
   scatterTrees(g) {
     // The quiet corners between the streets. Anything near the plaza, a street
     // or a district would be something to run into, so those areas are skipped.
+    const trees = this.worldLook.trees || {};
+    const target = Math.round(64 * (trees.density || 1));
+    const wantPalm = !!trees.palm;
     let placed = 0;
-    for (let tries = 0; tries < 520 && placed < 64; tries++) {
+    for (let tries = 0; tries < Math.max(520, target * 9) && placed < target; tries++) {
       const x = rand(-95, 95);
       const z = rand(-95, 95);
       if (Math.abs(x) < 12 || Math.abs(z) < 12) continue;              // the streets
@@ -534,13 +649,15 @@ export class Island {
         return along < 40 && across < 27;
       });
       if (near) continue;
-      // The two fairground plots, which are laid down before the trees are
+      // The two landmark plots, which are laid down before the trees are
       // scattered. Without this a copse grows inside the train's loop.
       if (Math.hypot(x + 58, z - 58) < 26) continue;
       if (Math.hypot(x - 58, z + 58) < 28) continue;
       if (Math.hypot(x - 58, z - 58) < 30) continue;   // the climb tower plot
+      const palm = wantPalm && (trees.density > 1 ? Math.random() < 0.5 : true);
       treeProp(this.world, x, 0, z, g, {
-        height: randInt(5, 9),
+        palm,
+        height: palm ? randInt(8, 12) : randInt(5, 9),
         spin: rand(0, Math.PI / 2),
         leaf: bc(Math.random() < 0.25 ? 'Br. yellowish green' : 'Bright green'),
       });
@@ -550,7 +667,7 @@ export class Island {
       for (let b = 0, clumps = randInt(1, 2); b < clumps; b++) {
         bushProp(this.world, x + rand(-4.5, 4.5), 0, z + rand(-4.5, 4.5), g, { size: rand(1.8, 3.2) });
       }
-      if (Math.random() < 0.22) {
+      if (trees.flowers !== false && Math.random() < 0.22) {
         flowerBed(this.world, x + rand(-6, 6), 0, z + rand(-6, 6), g, { size: rand(3, 4.5), count: randInt(6, 9) });
       }
     }

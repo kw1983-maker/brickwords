@@ -66,7 +66,7 @@ the CSS. **Every module ends up in one shared scope**, so:
 
 Build order (defined in `build.py`):
 `rbx → parts → avatar → camera → controller → audio → speech → words →
-questions → quests → course → npc → island → ui → main`
+worlds → questions → quests → course → npc → island → ui → main`
 
 (`island.js` comes after `npc.js` because it builds the district shopkeepers out
 of `Guide`.)
@@ -173,6 +173,10 @@ A word needs only `word`, `emoji` and `sentence` — unlike the Minecraft game t
 is no requirement that the world contain the thing, so every word in both books is
 usable. `validateWords()` warns in the console at boot.
 
+**`js/worlds.js`** — pack-themed biomes. A pack's `world` id picks sky, ground,
+water, trees and the two landmark plots. Gameplay layout does not change. Unknown
+or missing ids fall back to `town`.
+
 **`js/quests.js`** — the island's `questions.js`. A set of packs plus a year
 becomes a run of **hunts**: `find` (Year 1 — hear the word, go and get it),
 `listen` (Year 2 — hear the model sentence with a gap) and `grammar` (Year 4 —
@@ -192,6 +196,8 @@ alike. Two numbers are doing real work:
   it away and the mode stops teaching.
 - `DISTRICT_THEMES` maps a pack id to its colours and its prop, with a fallback,
   so a pack a teacher adds later still gets a district without editing this file.
+  The **home pack's biome** (`worlds.js`) sets the whole island's sky, ground and
+  landmarks; district tints stay on top of that.
 - `buildFairground()` puts the ferris wheel and the train on the open green
   between two streets. `scatterTrees()` has to skip both plots by radius, or a
   copse grows inside the train's loop.
@@ -273,7 +279,7 @@ separated from the rAF loop so the simulation can be driven by hand.
 ```js
 RBX.help()                RBX.setYear(4)       RBX.setPack('past')
 RBX.mode('explore')       RBX.play()           RBX.question()
-RBX.tp(x, y, z)           RBX.give(50)         RBX.kill()
+RBX.biome()               RBX.tp(x, y, z)      RBX.give(50)         RBX.kill()
 // in game: M toggles the map, Q the quest checklist, H repeats the question
 RBX.tick(2)               RBX.hold('w ', 1)    RBX.fps()
 RBX.physics()             RBX.finish()
@@ -296,7 +302,8 @@ than `setTimeout` and hoping.
 ## Adding content
 
 - **Words** — edit `js/words.js`, then `python build.py`. A new pack needs `years`
-  and `book`; check the console for `validateWords()` warnings.
+  and `book`; `world` is optional (falls back to `town`). Check the console for
+  `validateWords()` warnings.
 - **Years** — add an entry to `YEARS`; the title-screen picker builds itself from
   that table. A year needs `stages` (how long an obby course is), `hunts` (how many
   words an island run asks for), and both `lines.ask` (how the obby asks) and
@@ -305,6 +312,10 @@ than `setTimeout` and hoping.
   cannot be done.
 - **A district's look** — `DISTRICT_THEMES` in `js/island.js`. Optional; a pack
   with no entry gets the default park.
+- **A pack's world** — `world:` on the pack in `js/words.js`, pointing at an id
+  in `js/worlds.js` (`town`, `campus`, `fair`, `beach`, `jungle`, `stadium`,
+  `market`, `clinic`, `ruins`, `travel`). That sets sky, ground and landmarks
+  for both modes.
 - **Year 4 grammar** — add items to a pack's `quiz` as
   `{ q: 'She ___ to school.', a: 'goes', w: ['go', 'going', 'went'] }`.
 - **Hats** — add to `HATS` in `js/avatar.js` and a shape in `buildHat()`.

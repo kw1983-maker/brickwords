@@ -23,10 +23,12 @@ import { part, bc, SAFE_GAP, shuffle, randInt } from './rbx.js';
 import {
   platform, lavaPool, checkpointPad, coin, billboard, startArch, podium,
   baseplate, answerFace, boardFace, signBoard, decalPlane, canvasTexture,
-  obbyAnswerProp, fadeMeshes,
+  obbyAnswerProp, fadeMeshes, treeProp, balloonBunch, lampPost, flagPole,
+  stoneColumn, sidePost,
   UI_FONT, DISPLAY_FONT, EMOJI_FONT, DS, fitText, drawWrapped,
 } from './parts.js';
 import { QuestionSet } from './questions.js';
+import { worldForPack } from './worlds.js';
 
 // ------------------------------------------------------------- the geometry
 const BRICK_W = 6;          // an answer brick
@@ -60,6 +62,7 @@ export class Course {
     this.year = year;
     this.hooks = hooks;               // { onCorrect, onWrong, onCheckpoint, onFinish, onCoin, onWordCoin }
     this.questions = new QuestionSet(pack, year);
+    this.worldLook = worldForPack(pack);
     this.stages = [];
     this.checkpoints = [];
     this.billboards = [];        // turned toward the camera every frame
@@ -78,6 +81,7 @@ export class Course {
 
     this.buildFinish(plan.length);
     this.buildLava(plan.length);
+    this.dressSides(plan.length);
     this.setFocus(0);
     return this;
   }
@@ -85,9 +89,10 @@ export class Course {
   buildLobby() {
     const g = this.world.group('lobby');
     this.lobbyGroup = g;
+    const look = this.worldLook.obby;
 
     // The plaza. Roblox spawn areas are a big flat slab you cannot fall off.
-    platform(this.world, 0, 1, LOBBY_Z, 46, 46, bc('Medium stone grey'), { parent: g, h: 2 });
+    platform(this.world, 0, 1, LOBBY_Z, 46, 46, bc(look.lobby), { parent: g, h: 2 });
 
     // A rim of colour, so the lobby reads as "safe" at a glance. The +Z side is
     // left open: that is the way out through the arch, and a lip there is a
@@ -95,7 +100,7 @@ export class Course {
     [[0, -23], [-23, 0], [23, 0]].forEach(([dx, dz], i) => {
       const horiz = dx === 0;
       platform(this.world, dx, 2, LOBBY_Z + dz, horiz ? 46 : 2, horiz ? 2 : 46,
-        bc(STAGE_COLOURS[i]), { parent: g });
+        bc(look.rim[i] || STAGE_COLOURS[i]), { parent: g });
     });
 
     // The spawn pad you appear on when the place loads.
@@ -104,10 +109,10 @@ export class Course {
     this.spawn.set(0, 1, LOBBY_Z - 8);
     this.checkpoints.push({ stage: 0, x: 0, y: 1, z: LOBBY_Z - 8 });
 
-    startArch(this.world, 0, 1, LOBBY_Z + 22, g);
+    startArch(this.world, 0, 1, LOBBY_Z + 22, g, { colour: bc(look.arch) });
 
     // The sign over the arch tells the class what they are about to play.
-    const tex = boardFace(this.pack.name, `${this.year.label} · ${this.pack.blurb}`, { border: '#f5b81d' });
+    const tex = boardFace(this.pack.name, `${this.year.label} · ${this.worldLook.name}`, { border: '#f5b81d' });
     signBoard(this.world, 0, 17.5, LOBBY_Z + 22, tex, 16, 5, g, { post: false });
 
     // A short bridge from the edge of the plaza to the edge of stage 1's
@@ -116,7 +121,7 @@ export class Course {
     const bridgeFrom = LOBBY_Z + 23;                 // the plaza's far edge
     const bridgeTo = FIRST_Z - PLAT_D / 2;           // stage 1's near edge
     platform(this.world, 0, FLOOR_Y, (bridgeFrom + bridgeTo) / 2,
-      10, bridgeTo - bridgeFrom, bc('Medium stone grey'), { parent: g });
+      10, bridgeTo - bridgeFrom, bc(look.lobby), { parent: g });
   }
 
   stageZ(i) { return FIRST_Z + i * STRIDE; }
@@ -225,7 +230,7 @@ export class Course {
     this.finishZ = z;
     this.finishY = y;
 
-    platform(this.world, 0, y, z, 30, 26, bc('Bright yellow'), { parent: g });
+    platform(this.world, 0, y, z, 30, 26, bc(this.worldLook.obby.finish), { parent: g });
     podium(this.world, 0, y, z + 4, g);
 
     const tex = boardFace('FINISH!', `${this.pack.name} · ${this.year.label}`, { border: '#34b24a' });
@@ -268,6 +273,50 @@ export class Course {
     const zStart = LOBBY_Z - 90;
     const zEnd = this.stageZ(stageCount) + 70;
     lavaPool(this.world, 0, LAVA_Y, (zStart + zEnd) / 2, 62, zEnd - zStart, g);
+  }
+
+  // Scenery out beside the corridor, never between a launch pad and its answers.
+  // |x| ≈ 32 is well outside the widest Year 4 platform.
+  dressSides(stageCount) {
+    const g = this.world.group('sides');
+    const kind = this.worldLook.obby.sides;
+    for (let i = 0; i < stageCount; i += 2) {
+      const z = this.stageZ(i);
+      const y = this.stageY(i);
+      this.placeSide(kind, -32, y, z - 2, g);
+      this.placeSide(kind, 32, y, z + 4, g);
+    }
+  }
+
+  placeSide(kind, x, y, z, g) {
+    if (kind === 'palms') {
+      treeProp(this.world, x, y, z, g, { palm: true, height: 9, solid: false });
+      return;
+    }
+    if (kind === 'balloons') {
+      balloonBunch(this.world, x, y, z, g, { count: 4 });
+      return;
+    }
+    if (kind === 'flags') {
+      const hues = ['Bright red', 'Bright blue', 'Bright yellow', 'Bright green'];
+      flagPole(this.world, x, z, g, {
+        y, colour: bc(hues[Math.abs(Math.round(z / 10)) % hues.length]), height: 12,
+      });
+      return;
+    }
+    if (kind === 'posts') {
+      sidePost(this.world, x, y, z, g, { height: 10, colour: bc('Institutional white') });
+      return;
+    }
+    if (kind === 'lamps') {
+      lampPost(this.world, x, y, z, g);
+      return;
+    }
+    if (kind === 'columns') {
+      stoneColumn(this.world, x, z, g, { y, height: 10 });
+      return;
+    }
+    treeProp(this.world, x, y, z, g, { height: 7, solid: false });
   }
 
   // ---------------------------------------------------------------- playing

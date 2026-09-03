@@ -7,7 +7,7 @@ import {
   DEFAULT_AVATAR, bc, clamp, GRAVITY, WALKSPEED, JUMPPOWER,
   JUMP_RISE, JUMP_REACH, SAFE_GAP,
 } from './rbx.js';
-import { PartWorld, makeSky, keepSunOver, makeEnvironment } from './parts.js';
+import { PartWorld, makeSky, keepSunOver, makeEnvironment, applyWorldLook } from './parts.js';
 import { Avatar, HATS } from './avatar.js';
 import { OrbitCamera } from './camera.js';
 import { Humanoid } from './controller.js';
@@ -20,6 +20,7 @@ import {
 import { wordWall } from './questions.js';
 import { Course } from './course.js';
 import { Island, ISLE_WADE } from './island.js';
+import { worldForPack } from './worlds.js';
 import { missLine, hitLine } from './quests.js';
 import { Guide } from './npc.js';
 import { UI } from './ui.js';
@@ -209,6 +210,7 @@ function startGame() {
   course = null;
 
   world = new PartWorld(scene);
+  applyWorldLook(scene, renderer, worldForPack(pack));
 
   if (isle) {
     island = new Island(world, scene, districtPacks(state.yearId, pack), pack, year, {
@@ -1030,6 +1032,7 @@ function debugApi() {
         "RBX.mode('explore')     choose the game ('obby' or 'explore')",
         'RBX.setYear(4)          choose the class (1, 2 or 4)',
         "RBX.setPack('past')     choose the word pack, then RBX.play()",
+        'RBX.biome()             the pack world (town, beach, stadium…)',
         'RBX.play()              build and start the chosen game',
         'RBX.stage(7)            teleport to the launch platform of stage 7',
         'RBX.answer(true)        jump onto the right (or wrong) brick',
@@ -1056,6 +1059,10 @@ function debugApi() {
     },
     setYear(id) { state.yearId = Number(id); refreshPickers(); return yearById(id).label; },
     setPack(id) { if (packById(id)) state.packId = id; return state.packId; },
+    biome() {
+      const look = (island && island.worldLook) || (course && course.worldLook);
+      return look ? { id: look.id, name: look.name, landmark: look.landmark } : null;
+    },
     play() { startGame(); },
     tp(x, y, z) { humanoid.teleport(x, y, z); },
     give(n) { state.coins += n; UI.setStats({ coins: state.coins }); save(); return state.coins; },
